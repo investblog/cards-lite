@@ -1,0 +1,55 @@
+{
+  "name": "cards-lite",
+  "version": "0.0.0",
+  "description": "Procedural playing-card illustrations as an SVG string. Seeded spreads, brand-aware four-colour deck, line or flat, poker and blackjack hand presets. Zero dependencies; runs in Node at build time and in the browser.",
+  "main": "cards.js",
+  "types": "cards.d.ts",
+  "files": [
+    "cards.js",
+    "cards.min.js",
+    "cards.d.ts",
+    "CHANGELOG.md"
+  ],
+  "scripts": {
+    "build": "terser cards.js --compress --mangle -o cards.min.js",
+    "size": "node scripts/size.mjs",
+    "lint": "eslint .",
+    "test": "node --test \"test/*.test.mjs\"",
+    "prepack": "npm run build"
+  },
+  "config": {
+    "sizeBudget": 7680
+  },
+  "keywords": [
+    "playing-cards",
+    "cards",
+    "poker",
+    "blackjack",
+    "svg",
+    "illustration",
+    "generative",
+    "generative-art",
+    "procedural",
+    "hero-background",
+    "line-art",
+    "palette",
+    "ssr",
+    "static-site",
+    "zero-dependencies",
+    "vanilla-js"
+  ],
+  "author": "301st (https://301.st)",
+  "license": "MIT",
+  "homepage": "https://github.com/investblog/cards-lite#readme",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/investblog/cards-lite.git"
+  },
+  "bugs": {
+    "url": "https://github.com/investblog/cards-lite/issues"
+  },
+  "devDependencies": {
+    "eslint": "^10.11.0",
+    "terser": "^5.51.2"
+  }
+}
