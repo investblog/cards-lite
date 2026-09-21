@@ -36,9 +36,12 @@ test('the alphabet is 13 ranks and 4 suits, every shape distinct', () => {
 
 // how many pips a card actually renders: slots inside the mirrored group are painted twice
 const pipCount = (svg) => {
-	const pid = svg.match(/<path id="([a-z0-9]+)" d="M0 34C/u) || svg.match(/<path id="([a-z0-9]+)" d="M0-3/u)
-		|| svg.match(/<path id="([a-z0-9]+)" d="M-4 6A/u);
-	const id = pid[1];
+	// find the pip def by structure, not by how its path happens to start: face() emits the rank
+	// glyph first and the suit pip second. Matching on path prefixes broke the moment the glyphs
+	// were redrawn, and matching on `<use x=` breaks on the ace, whose one pip is scaled, not placed.
+	const ids = [...svg.matchAll(/<path id="([a-z0-9]+)"/gu)].map((m) => m[1]);
+	assert.equal(ids.length, 2, 'a card defines one rank glyph and one suit pip');
+	const id = ids[1];
 	const half = svg.match(/<g id="[a-z0-9]+">([\s\S]*?)<\/g><\/defs>/u)[1];
 	const all = (svg.match(new RegExp(`href="#${id}"`, 'gu')) || []).length;
 	const inHalf = (half.match(new RegExp(`href="#${id}"`, 'gu')) || []).length;
@@ -149,7 +152,10 @@ test('a hand is deterministic, capped, and takes an explicit list verbatim', () 
 	for (const d of ['M-24 48 0-48 24 48', 'M-21 -46V48', 'M0 -46Q23', 'M13 -46V20', 'M-40 -38-31 -46V48']) {
 		assert.ok(royal.includes(d), 'the royal flush draws the rank it was given');
 	}
-	assert.equal((royal.match(/<path id="[a-z0-9]+" d="M0-36C10/gu) || []).length, 1, 'one spade pip serves all five');
+	// one spade pip serves all five cards: exactly one pip def, placed by many <use>s
+	const pipDefs = [...royal.matchAll(/<path id="([a-z0-9]+)"/gu)].map((m) => m[1])
+		.filter((id) => royal.includes(`<use href="#${id}" x=`));
+	assert.equal(pipDefs.length, 1, 'one spade pip serves all five');
 });
 
 test('no signature, over both drawing calls (ADR 005)', () => {
