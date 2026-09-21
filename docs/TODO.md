@@ -29,7 +29,7 @@ the way.
   test file carries itself — the library has none and must not grow one (ADR 010).
 - [x] M5 — the browser gate, the playground, CI and release workflows, README/CHANGELOG/RELEASING
   (2026-09-21). `test/verify.html`: **13 checks ALL GREEN in Chromium 153, Firefox and WebKit,
-  in both motion modes**, run from a local server, cache-busted. 60 Node tests, 8950 B.
+  in both motion modes**, run from a local server, cache-busted. 62 Node tests, 8950 B.
   Reviewed in two independent passes — the Codex gate was out of quota until 2026-09-25, so the
   house `code-review` protocol ran instead. Twenty findings, all verified by measurement before
   acting: **three were defects in the library** (a spread name from outside could throw or draw a
@@ -47,6 +47,9 @@ the way.
   only for `cascade`, and by a proxy on `dx`: it now carries the index's five points into every
   later card's own space — `fan`, `row`, `cascade`, `pair` clear over 60 seeds × three counts,
   and `pile`/`stack` are asserted to cover, so the exemption stays a measured fact.
+  The plan's palette-parity fixture landed too: `Cards.palette(b).stroke`, `.background` and
+  `.halo` are byte-identical to `Hexagons.palette(b)` in all 16 brand × theme cases, pinned in
+  `test/fixtures/palette-parity.json` from hexagons @ 9f9b933 so the test needs no sibling repo.
 - [ ] `split` — two hands side by side. Every layout places one group, so it waits for a two-group
   layout rather than being faked with four cards in a row (spec: Hands).
 - [ ] M6 — first integration in a static site, then release 0.1.0.
