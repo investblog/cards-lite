@@ -513,6 +513,7 @@
 		// would resolve to the first of them. salt remains for what that cannot fix — the same
 		// picture twice.
 		c.ids = function (key) {
+			c.key = key;
 			c.tk = tokens(S, (o.salt || '') + key);
 			c.add = function (k, make) {
 				if (!seen[k]) { var id = c.tk(); seen[k] = id; c.defs += make().replace('"%"', '"' + id + '"'); }
@@ -534,12 +535,12 @@
 		return [ri, si];
 	}
 
-	function wrap(o, c, box, inner) {
+	function wrap(o, c, box, inner, style) {
 		var a11y = o.title ? ['role', 'img', 'aria-label', esc(o.title)] : ['aria-hidden', 'true'];
 		var vb = box.map(function (v) { return n(v, c.p); }).join(' ');
 		return el('svg', ['xmlns', NS, 'viewBox', vb, 'width', o.size == null ? null : n(o.size),
 			'height', o.size == null ? null : n(o.size * box[3] / box[2])].concat(a11y),
-		(c.defs ? el('defs', [], c.defs) : '') + inner);
+		(c.defs ? el('defs', [], c.defs) : '') + (style || '') + inner);
 	}
 
 	function card(opts) {
@@ -695,15 +696,167 @@
 		return f.indexOf(i) >= 0;
 	}
 
+	// ── hands: the named presets are DATA, never an evaluator (ADR 010) ─────
+
+	// A partial Fisher-Yates whose prefix is stable in m: draw i always reads stream key:i, so
+	// asking for one more distinct value never re-rolls the ones already drawn.
+	// a name from outside must never reach Object.prototype: `preset: 'toString'` found a function
+	// where a layout was expected, and the house never throws
+	function own(obj, k) {
+		return Object.prototype.hasOwnProperty.call(obj, k) ? obj[k] : null;
+	}
+
+	function pickN(S, key, m, N) {
+		var a = [], out = [], i, j, t;
+		for (i = 0; i < N; i++) a.push(i);
+		for (i = 0; i < m; i++) {
+			j = i + Math.floor(S(key + ':' + i)() * (N - i));
+			t = a[i]; a[i] = a[j]; a[j] = t;
+			out.push(a[i]);
+		}
+		return out;
+	}
+
+	// rank order for a run, the ace at both ends: s = 0 is the wheel, s = 9 the royal
+	var RUN = [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 0];
+	var PRESET = {
+		'royal-flush': 'row', 'straight-flush': 'row', 'four-of-a-kind': 'row', 'full-house': 'row',
+		flush: 'row', straight: 'row', 'three-of-a-kind': 'row', 'two-pair': 'row',
+		pair: 'fan', 'high-card': 'fan', blackjack: 'pair', 'double-down': 'pair'
+	};
+	var GROUPS = {
+		'four-of-a-kind': [4, 1], 'full-house': [3, 2], 'three-of-a-kind': [3, 1, 1],
+		'two-pair': [2, 2, 1], pair: [2, 1, 1, 1]
+	};
+
+	// Every category is correct BY CONSTRUCTION, which is what makes "no evaluator" literally
+	// true: there is no isFlush() here, and nothing a reader could mistake for a scorer.
+	function hands(name, S) {
+		var cd = function (r, su) { return RANKS[r] + SUITS.charAt(su); };
+		var out = [], i, j, suit = pickN(S, 'hand:suit', 1, 4)[0];
+
+		// the blackjack motifs: an ace and a ten-value, and a crosswise third for a double-down
+		if (name === 'blackjack' || name === 'double-down') {
+			out = [cd(0, suit), cd(9 + pickN(S, 'hand:ten', 1, 4)[0], pickN(S, 'hand:suit2', 1, 4)[0])];
+			// the third card must not be one of the two already on the table: drawing its rank and
+			// its suit from streams that never saw them dealt the same physical card in 4.5% of
+			// seeds — Ac 10s Ac, and the picture showed two identical cards side by side
+			if (name === 'double-down') {
+				for (i = 0; i < 52; i++) {
+					var k = pickN(S, 'hand:third:' + i, 1, 52)[0], c3 = cd(k % 13, Math.floor(k / 13));
+					if (out.indexOf(c3) < 0) { out.push(c3); break; }
+				}
+			}
+			return out;
+		}
+
+		// a run of five. s = 9 IS the royal; a straight takes a second suit so it is not a flush
+		if (name === 'royal-flush' || name === 'straight-flush' || name === 'straight') {
+			var s0 = name === 'royal-flush' ? 9 : pickN(S, 'hand:run', 1, name === 'straight' ? 10 : 9)[0];
+			for (i = 0; i < 5; i++) out.push(cd(RUN[s0 + i], suit));
+			if (name === 'straight') {
+				j = 1 + pickN(S, 'hand:odd', 1, 4)[0];
+				out[j] = cd(RUN[s0 + j], (suit + 1 + pickN(S, 'hand:odd2', 1, 3)[0]) % 4);
+			}
+			return order(out);
+		}
+
+		// a run with an interior rank dropped and one taken from OUTSIDE the window: four ranks
+		// spanning five positions with a hole, and a fifth that can neither fill it nor extend
+		// the run. A high card is the same hand with one suit forced different.
+		if (name === 'flush' || name === 'high-card') {
+			var s1 = pickN(S, 'hand:run', 1, 10)[0], hole = 1 + pickN(S, 'hand:hole', 1, 3)[0];
+			var used = [], keep = [], free = [];
+			for (i = -1; i <= 5; i++) used[RUN[(s1 + i + 14) % 14]] = 1;
+			for (i = 0; i < 5; i++) if (i !== hole) keep.push(RUN[s1 + i]);
+			for (i = 0; i < 13; i++) if (!used[i]) free.push(i);
+			keep.push(free[pickN(S, 'hand:odd', 1, free.length)[0]]);
+			for (i = 0; i < 5; i++) out.push(cd(keep[i], suit));
+			if (name === 'high-card') {
+				j = 1 + pickN(S, 'hand:odd2', 1, 4)[0];
+				out[j] = cd(keep[j], (suit + 1 + pickN(S, 'hand:odd3', 1, 3)[0]) % 4);
+			}
+			return order(out);
+		}
+
+		// the paired families. The ranks are distinct by the picker, so none of these can also be
+		// a straight (which needs five distinct ranks) or a flush (a pair is two suits) — the
+		// checks a scorer would need do not exist because they cannot fail.
+		var g = own(GROUPS, name);
+		if (!g) return null;
+		var ranks = pickN(S, 'hand:rank', g.length, 13);
+		for (i = 0; i < g.length; i++) {
+			var suits = pickN(S, 'hand:suit:' + i, g[i], 4);
+			for (j = 0; j < g[i]; j++) out.push(cd(ranks[i], suits[j]));
+		}
+		return order(out);
+	}
+
+	// Display order: the bigger group first, then high to low with the ace high. A comparator is
+	// not an evaluator — it never decides what a hand IS, only which end of it to draw first.
+	function order(codes) {
+		var seen = {}, i;
+		for (i = 0; i < codes.length; i++) {
+			var r0 = codes[i].slice(0, -1);
+			seen[r0] = (seen[r0] || 0) + 1;
+		}
+		return codes.slice().sort(function (a, b) {
+			var ra = a.slice(0, -1), rb = b.slice(0, -1);
+			var hi = function (r) { return r === 'A' ? 13 : RANKS.indexOf(r); };
+			return seen[rb] - seen[ra] || hi(rb) - hi(ra);
+		});
+	}
+
+	// ── the deal: CSS, one-shot, and it ends where the card belongs ─────────
+
+	// SMIL cannot be gated by prefers-reduced-motion without script (ADR 006), so this is CSS.
+	// The animation runs FROM an offset TO nothing: `animation: none` under reduced motion leaves
+	// every card in its finished place, where a `to`-based deal would strand the reader looking
+	// at the start state. Travel begins inside the frame, so nothing is clipped. The placement
+	// transform stays on the outer group and the animation class on an inner one, because a CSS
+	// transform would otherwise replace the attribute.
+	function deal(c, count) {
+		var S = c.S, speed = c.o.speed == null ? 1 : c.o.speed;
+		if (!speed) return null;
+		// motion names come from a stream of their own, so switching the deal on renames nothing
+		// in the static picture — the family's rule, and a test pins it
+		// keyed by the picture as well, the way ids are: two different hands under one seed on one
+		// page shared a keyframe and their classes, and the document-global <style> let the later
+		// block's timing win for both
+		var tk = tokens(S, 'motion' + (c.o.salt || '') + c.key), kf = tk(), out = [], css = '', i;
+		var dur = 0.45 / speed, step = 0.11 / speed;
+		// the cards come from where the deck would be: up and to the left, inside the picture
+		// The travel must fit inside the pad, or the leading card of every spread starts outside
+		// the viewBox and is clipped on its way in — at 0.70 opacity, which reads as a glitch
+		// rather than as an entry. Tied to `pad` so the invariant holds by construction and not
+		// by a number that happens to be small.
+		var pad = (c.o.pad == null ? 0.06 : c.o.pad) * W;
+		var fx = -0.8 * pad, fy = -0.8 * pad, spin = -12 - 16 * S('deal:spin')();
+		css = '@keyframes ' + kf + '{from{transform:translate(' + n(fx) + 'px,' + n(fy) +
+			'px) rotate(' + n(spin, 1) + 'deg);opacity:0}}';
+		for (i = 0; i < count; i++) {
+			var cls = tk();
+			out.push(cls);
+			css += '.' + cls + '{animation:' + kf + ' ' + n(dur, 2) + 's ' + n(i * step, 2) +
+				's backwards cubic-bezier(.2,.7,.3,1)}';
+		}
+		css += '@media(prefers-reduced-motion:reduce){' +
+			out.map(function (k) { return '.' + k; }).join(',') + '{animation:none}}';
+		return { css: css, cls: out };
+	}
+
 	function hand(opts) {
 		var o = opts || {}, c = context(o), i;
 		// cards: an explicit list wins, otherwise distinct cards drawn from the seed
 		var list = [];
 		if (typeof o.cards === 'string') list = o.cards.split(/[\s,]+/);
 		else if (o.cards) list = o.cards.slice();
+		else if (o.preset) list = hands(o.preset, c.S) || [];
 		var kind = o.spread && o.spread !== 'auto' && LAYOUTS[o.spread] ? o.spread : null;
 		var want = list.length || (o.count == null ? 5 : o.count);
-		if (!kind) kind = o.spread === 'auto' ? choose(want, c.S) : 'fan';
+		// own() everywhere a name from outside indexes an object: `preset: 'toString'` reached
+		// Object.prototype and threw, which breaks the promise that the house never throws
+		if (!kind) kind = o.spread === 'auto' ? choose(want, c.S) : (o.preset && own(PRESET, o.preset)) || 'fan';
 		// a count over the cap clamps silently; an explicit list never loses a card, the spread
 		// gives way instead — a cascade holds 13, a stack holds any number (spec: Spreads)
 		if (list.length > CAP[kind]) kind = list.length <= CAP.cascade ? 'cascade' : 'stack';
@@ -733,13 +886,17 @@
 		order.sort(function (a2, b2) {
 			return (place[a2][3] == null ? a2 : place[a2][3]) - (place[b2][3] == null ? b2 : place[b2][3]);
 		});
+		var mo = o.motion ? deal(c, count) : null;
 		for (var q = 0; q < count; q++) {
 			i = order[q];
 			var rs = pick({ card: codes[i] }, c.S, ':' + i);
+			var drawn = face(rs[0], rs[1], c, downAt(o, i, count));
+			// the class rides an INNER group: a CSS transform would replace the placement attribute
+			if (mo) drawn = el('g', ['class', mo.cls[i]], drawn);
 			body += el('g', ['transform', 'translate(' + place[i][0] + ' ' + place[i][1] + ')' +
-				(place[i][2] ? ' rotate(' + place[i][2] + ')' : '')], face(rs[0], rs[1], c, downAt(o, i, count)));
+				(place[i][2] ? ' rotate(' + place[i][2] + ')' : '')], drawn);
 		}
-		return wrap(o, c, frame(place, o, c.p), body);
+		return wrap(o, c, frame(place, o, c.p), body, mo ? el('style', [], mo.css) : '');
 	}
 
 	// The whole deck as one sheet: 13 columns by 4 rows, one defs block, `detail: 1` by default.
@@ -761,5 +918,26 @@
 		return wrap(d2, c, [0, 0, gap + 13 * cw, gap + 4 * ch], body);
 	}
 
-	return { card: card, hand: hand, deck: deck, palette: palette, RANKS: RANKS, SUITS: SUITS, IDX: IDX };
+	// Browser convenience: draw into an element and keep it drawn. Pins stay pinned across set()
+	// because options merge. Unlike roulette's, there is no loop and nothing to pause — a deal
+	// plays once — so this is the insert-and-keep part only (ADR 002).
+	function init(target, opts) {
+		var host = typeof target === 'string' ? document.querySelector(target) : target;
+		if (!host) return null;
+		var cur = {}, draw = { card: card, hand: hand, deck: deck };
+		var paint = function () { host.innerHTML = (own(draw, cur.draw) || hand)(cur); };
+		var set = function (o) {
+			for (var k in o) if (Object.prototype.hasOwnProperty.call(o, k)) cur[k] = o[k];
+			paint();
+		};
+		set(opts || {});
+		return {
+			el: host,
+			get: function () { var c = {}; for (var k in cur) if (Object.prototype.hasOwnProperty.call(cur, k)) c[k] = cur[k]; return c; },
+			set: set,
+			destroy: function () { host.innerHTML = ''; }
+		};
+	}
+
+	return { card: card, hand: hand, deck: deck, palette: palette, init: init, RANKS: RANKS, SUITS: SUITS, IDX: IDX };
 });

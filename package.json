@@ -18,7 +18,7 @@
     "prepack": "npm run build"
   },
   "config": {
-    "sizeBudget": 7680
+    "sizeBudget": 9088
   },
   "keywords": [
     "playing-cards",

@@ -24,9 +24,13 @@ the way.
 - [x] M3 — all six spreads + `auto`, both styles, the court emblem, the three-lattice back,
   `deck()`, `facedown`, `jitter` (2026-09-21). 34 tests, 7528 B. Reviewed by Codex in two rounds:
   eleven findings, eight of them real code defects, all fixed.
-- [ ] M4 — presets, motion, `init()`, types, the determinism and 17-path tests, **budget frozen**.
+- [x] M4 — the twelve named hands, the CSS deal, `init()`, the types, and the **budget frozen at
+  9088 B** (measured 8747, 2026-09-21). 49 tests, including 2000 hands checked by an evaluator the
+  test file carries itself — the library has none and must not grow one (ADR 010).
 - [ ] M5 — `verify.html` in three engines, CI and release workflows, README/CHANGELOG/RELEASING,
   external Codex review.
+- [ ] `split` — two hands side by side. Every layout places one group, so it waits for a two-group
+  layout rather than being faked with four cards in a row (spec: Hands).
 - [ ] M6 — first integration in a static site, then release 0.1.0.
 
 ## Re-ported when needed
@@ -44,6 +48,9 @@ Kept out on purpose — the family rule is that nothing speculative is carried, 
   card count. The deal is the only motion in v0.1 (ADR 006 inherited).
 - `deck: 'two'` — the two-colour convention (diamonds alias hearts, clubs alias spades), ~20 B.
   Reserved, not proposed.
+- **Start the deal on entry** — an IntersectionObserver in `init()`, so a hand below the fold
+  deals when it is reached rather than before. ~150 B against 183 B of headroom, so it is a
+  budget conversation, not a free addition.
 - `polymorph` — the family's answer to the shared element skeleton, and the long answer to the
   17-path exception (ADR 005).
 - **The deck body** — handing a long `stack` off to an oblique extrusion of ~10 shapes instead of

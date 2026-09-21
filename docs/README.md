@@ -10,7 +10,9 @@ project: cards-lite
 Docs for developers and agents. `index.html` is the verification surface, `test/` the gate.
 Contract-first: change the doc here **before** the code, then code.
 
-**Status (2026-09-21): M3 — all six spreads, both styles, the court emblem, the card back and `deck()` are in. Motion, the hand presets, `init()` and the types are M4.** This line is kept
+**Status (2026-09-21): M4 — the named hands, the deal, `init()` and the types are in; the library
+is feature-complete for v0.1.** What remains is M5 (the browser verify page, CI and release
+workflows, the README, an external review) and M6 (an integration, then the release). This line is kept
 true at every milestone; a spec that still says "SPEC" after shipping (hexagons) is the thing it
 guards against, and one that claims a release it has not made is the same fault pointing the
 other way.
@@ -341,7 +343,11 @@ distinct values whose prefix is stable in `m`.
 | `four-of-a-kind` · `full-house` · `three-of-a-kind` · `two-pair` · `pair` | ranks by `pick`, suits by `pick` | `row` / `fan` |
 | `flush` · `high-card` | a run with an interior rank dropped and one added outside `[s−1, s+5]` — four ranks spanning five positions with a hole, and a fifth that can neither fill nor extend it | `row` / `fan` |
 | `straight` · `high-card` | one card's suit forced different from card 0's | `row` / `fan` |
-| `blackjack` · `split` · `double-down` | A + a ten-value · two equal-rank pairs · two up and one crosswise, face down | `pair` |
+| `blackjack` · `double-down` | A + a ten-value · the same two and a crosswise third | `pair` |
+
+**`split` is not in v0.1.** It is two hands side by side, and every layout here places one group;
+faking it by laying four cards in a row would draw something that is not a split. It waits for a
+two-group layout, in the backlog.
 
 Why no checks are needed: a paired hand cannot also be a flush (a pair is two suits) or a straight
 (five distinct ranks are required), and `pick` guarantees distinct ranks. Display order is
@@ -371,7 +377,10 @@ Off by default. `motion: 'deal' | true`, `speed` divides the periods, `0` turns 
 - A deal is a one-shot flourish where roulette's spin is permanent, so it must not grow: the
   budget for it is ~0.35 KB, and a flip (which doubles a card's markup) and a riffle (whose
   keyframe count scales with the card count) are out.
-- `init()` pauses off screen through the seeded pause variable, as in roulette.
+- **`init()` does not gate on visibility.** Roulette pauses off screen because its motion is
+  permanent; a deal is one-shot, so there is nothing to pause — but there is something to *delay*,
+  and this version does not: a hand below the fold finishes dealing before the reader reaches it
+  and they see only the rest state. Starting the deal on entry is in the backlog, not in v0.1.
 
 ## API
 
@@ -417,7 +426,9 @@ Shared by `card()`, `hand()` and `deck()`:
 | `salt` | `''` | extra entropy for ids — two pictures of **the same card** with one seed on one page |
 | `title` | — | `role="img"` + escaped `aria-label`; otherwise `aria-hidden="true"` |
 
-`card()` adds `card` (`'QH'`, `'10S'`, `'??'`), `rank`, `suit`, `facedown`, `emblem`, `angle`.
+`card()` adds `card` (`'QH'`, `'10S'`, `'??'`), `rank`, `suit`, `facedown` and `emblem`. There is
+no `angle`: a card rotated inside a fixed viewBox clips at the corners, and a spread is where a
+card is meant to be turned.
 `hand()` adds `cards`, `preset`, `count` (precedence: `cards` > `preset` > `count`), `spread`,
 `reveal`, `step`, `arc`, `lean`, `jitter`, `facedown` (`'all'`, `'first'`, `'last'`, a mask
 `'01101'`, or indices), `gap`. `deck()` adds `top`, `cut`, `stripes`, `dir`.
@@ -474,8 +485,11 @@ contribute **zero** seed-invariant `d` values.
 ## Performance and size
 
 - Library: budget in `package.json` `config.sizeBudget`, measured by `npm run size` (terser in
-  process + gzip level 9 — never the `gzip` CLI, whose header carries the file name). **Provisional
-  7680 B**, frozen at measured + 2.5% after the milestone that lands face, back and motion (ADR 009).
+  process + gzip level 9 — never the `gzip` CLI, whose header carries the file name). Provisional
+  7680 B at M0, **frozen at 9088 B after M4** — measured 8747 + 2.5%, rounded to the next 128
+  (ADR 009). From here that is room for fixes, not for features. The M0 forecast was 26% low, and
+  the parts that missed were the estimated ones: everything measured before it was written came in
+  on the number.
 - Output: ≤ 6 KB raw for a five-card hand, ≤ 10 KB for a thirteen-card cascade, ~47 KB for
   `deck()`'s sheet (measured M3).
 
