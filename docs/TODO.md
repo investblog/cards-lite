@@ -21,8 +21,9 @@ the way.
   packed pip field and its mirror, `fan`, `row`, the framing pass, `hand()`. Visual gates passed
   in Chromium: the 52-card sheet at 108/64/40 px, the 10♦ gutter, the weight ladder. 21 tests,
   5586 B. `tokens()` and `DEG` re-ported; `INSET` still unused and still on this list.
-- [ ] M3 — all six spreads + `auto`, both styles, the court emblem, the three-lattice back,
-  `deck()`, the caps and the aspect table.
+- [x] M3 — all six spreads + `auto`, both styles, the court emblem, the three-lattice back,
+  `deck()`, `facedown`, `jitter` (2026-09-21). 34 tests, 7528 B. Reviewed by Codex in two rounds:
+  eleven findings, eight of them real code defects, all fixed.
 - [ ] M4 — presets, motion, `init()`, types, the determinism and 17-path tests, **budget frozen**.
 - [ ] M5 — `verify.html` in three engines, CI and release workflows, README/CHANGELOG/RELEASING,
   external Codex review.
@@ -30,11 +31,10 @@ the way.
 
 ## Re-ported when needed
 
-Kept out of M0 on purpose — the family rule is that nothing speculative is carried, and lint
-enforces it:
+Kept out on purpose — the family rule is that nothing speculative is carried, and lint enforces it:
 
-- `INSET` — the live-area inset; nothing lays out against it yet. Comes back with the court panel
-  and the back frame (M3).
+- `INSET` — never needed after all: the face's numbers are absolute (ADR 003) and the back's frame
+  inset is seeded. Dropped rather than carried.
 
 ## Later (not v0.1)
 
@@ -46,3 +46,6 @@ enforces it:
   Reserved, not proposed.
 - `polymorph` — the family's answer to the shared element skeleton, and the long answer to the
   17-path exception (ADR 005).
+- **The deck body** — handing a long `stack` off to an oblique extrusion of ~10 shapes instead of
+  52 full cards, the way roulette draws its rim. Today an explicit list of twenty named cards is
+  twenty full cards and weighs like it; the spec says so rather than pretending otherwise.

@@ -36,3 +36,15 @@ Framing uses the rectangle support function \u2014 `ex = w|cos a| + h|sin a|` \u
   true rather than true-to-a-rounding, and a browser test can assert it.
 - Per-card wobble uses an indexed stream key, so `count` appends rather than re-deals \u2014 pinned on
   relative placements, which is the honest form.
+
+## Addendum — 2026-09-21: the paint order is part of the placement
+
+A heap is not dealt in sequence, so `pile` needs a z-order. The first attempt put it in `hand()`
+behind `if (kind === 'pile')` — which broke this ADR's one rule, because painting then knew which
+layout it was drawing, and a Fisher–Yates over the whole hand was not prefix-stable either: a
+seventh card re-shuffled the six already placed. Both were caught by an external review (Codex).
+
+**A placement is `(cx, cy, a)` and may carry a fourth element: its paint order.** Painting sorts
+by it and falls back to the index when it is absent, so it still never learns the layout's name,
+and the value is a pure function of the card's own index, so adding a card slots it into the order
+without moving the others. Framing ignores the fourth element entirely.

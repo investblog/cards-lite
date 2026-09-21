@@ -21,6 +21,8 @@
 	var W = 500, H = 700, HW = W / 2, HH = H / 2;
 	var IDX = 140; // the index reach: the strip that must stay uncovered for a rank to read
 	var DEG = Math.PI / 180;
+	var SQRT3 = Math.sqrt(3);
+	var A_REG = (2 - Math.SQRT2) / 2; // 0.29289… exact regular octagon
 
 	// ── numbers and markup ──────────────────────────────────────────────────
 
@@ -307,16 +309,137 @@
 	];
 	var COL = 100, ROW = [206, 103, 69];
 
+	// ── the back: the family's own lattices (ADR 008) ───────────────────────
+
+	// The three `d` builders are the siblings' own, copied with their seam and cap comments —
+	// both were earned by defects, and re-deriving them would re-earn them. Only the <svg>
+	// wrapper and the data-URI return are dropped; the tile goes inside a <pattern> instead.
+	// Sources: trigons-lite.js:427, octagons.js:463, hexagons.js:870.
+	function lattice(kind, p2, flat) {
+		var d = [];
+		var q = function (v) { return Math.round(v * 1000) / 1000; };
+		var seg = function (x1, y1, x2, y2) {
+			// flat orientation is the same tile with x and y swapped (hexagons')
+			d.push(flat ? 'M' + q(y1) + ' ' + q(x1) + 'L' + q(y2) + ' ' + q(x2)
+				: 'M' + q(x1) + ' ' + q(y1) + 'L' + q(x2) + ' ' + q(y2));
+		};
+		if (kind === 'trigon') {
+			// border segments sit on both opposite edges so the half-clipped strokes of
+			// neighbouring tiles sum to full weight; butt caps keep the vertices sharp
+			// (round caps would blob them)
+			seg(0, 0, p2, 0); seg(0, p2, p2, p2);
+			seg(0, 0, 0, p2); seg(p2, 0, p2, p2);
+			seg(p2, 0, 0, p2);
+		} else if (kind === 'octagon') {
+			var a = A_REG * p2;
+			// Flats sit exactly on the tile edge, so a stroke there is half-clipped.
+			// Drawing each on BOTH opposite edges lets the neighbouring tile supply the
+			// missing half — otherwise every seam renders at half thickness.
+			seg(a, 0, p2 - a, 0); seg(a, p2, p2 - a, p2);
+			seg(0, a, 0, p2 - a); seg(p2, a, p2, p2 - a);
+			seg(p2 - a, 0, p2, a); seg(p2, p2 - a, p2 - a, p2);
+			seg(a, p2, 0, p2 - a); seg(0, a, a, 0);
+		} else {
+			var sz = p2 / SQRT3;
+			var cell = function (cx, cy, r) {
+				var w2 = SQRT3 / 2 * r;
+				var v = [[cx, cy - r], [cx + w2, cy - r / 2], [cx + w2, cy + r / 2],
+					[cx, cy + r], [cx - w2, cy + r / 2], [cx - w2, cy - r / 2]];
+				for (var k = 0; k < 6; k++) seg(v[k][0], v[k][1], v[(k + 1) % 6][0], v[(k + 1) % 6][1]);
+			};
+			// centre cell outline; its left and right walls sit exactly on the tile edge, so both
+			// are drawn — the neighbouring tile supplies the other half of the stroke (same seam
+			// rule as the octagons pattern)
+			cell(p2 / 2, sz, sz);
+			// the one wall not on the centre cell: between the two half-cells
+			seg(p2 / 2, 2 * sz, p2 / 2, 3 * sz);
+		}
+		return d.join('');
+	}
+	var KINDS = ['trigon', 'octagon', 'hex'];
+
+	// The back carries NO fixed `d`: the pitch rebuilds every number in the tile, so it is the
+	// proof that the 17 fixed paths of ADR 005 are a scope and not an excuse.
+	function back(c) {
+		var o = c.o, S = c.S, p = c.p, stock = c.col('stock');
+		// the face is paper in both themes, so the "large flat colour fights a white page" lesson
+		// lands here and nowhere else: under theme light the back defaults to line (ADR 011)
+		var flat = o.style ? o.style !== 'line' : o.theme !== 'light';
+		var kind = o.lattice && o.lattice !== 'auto' ? o.lattice : KINDS[Math.floor(S('back:lattice')() * 3)];
+		var rx = n(24 + 12 * S('card:rx:back')(), p);
+		var b = 20 + 12 * S('back:inset')();
+		var field = o.face === false ? '' : el('rect', ['x', -HW, 'y', -HH, 'width', W, 'height', H, 'rx', rx,
+			'fill', flat ? c.col('back') : 'none', 'stroke', flat ? null : c.col('back'), 'stroke-width', flat ? null : 3]);
+		// the rounded rect IS the clip: a pattern fill is clipped by the shape it fills, so the
+		// frame inset is structural — it keeps the lattice off the card's own corner (ADR 008)
+		var fr = ['x', n(-HW + b, p), 'y', n(-HH + b, p), 'width', n(W - 2 * b, p), 'height', n(H - 2 * b, p),
+			'rx', n(Math.max(rx - 0.8 * b, 0), p), 'stroke', stock, 'stroke-width', n(6 * c.w, 2)];
+		if (kind === 'none' || o.detail === 1) return field + el('rect', fr.concat(['fill', 'none']));
+
+		var pitch = 26 + 30 * S('back:pitch')();
+		var flatHex = kind === 'hex' && S('back:orient')() < 0.5;
+		// a hexagon tile is pitch by 3s, and the flat orientation swaps the two
+		var tall = kind === 'hex' ? 3 * (pitch / SQRT3) : pitch;
+		// one pattern serves every back in a picture: they are the same seeded tile
+		var pid = c.add('back', function () {
+			return el('pattern', ['id', '%', 'patternUnits', 'userSpaceOnUse',
+				'width', n(flatHex ? tall : pitch, 2), 'height', n(flatHex ? pitch : tall, 2),
+				'patternTransform', 'translate(' + n(pitch * S('back:phase')(), 2) + ' ' +
+					n(pitch * S('back:phase2')(), 2) + ') rotate(' + n(90 * S('back:turn')(), 2) + ')'],
+			// butt caps (the SVG default, so never set): every edge is its own subpath, and round
+			// caps blunt the vertices — at a small pitch they turn the octagons into circles.
+			// Carried from hexagons.js:918 and octagons.js:508 with the geometry (ADR 008).
+			el('path', ['d', lattice(kind, pitch, flatHex), 'fill', 'none', 'stroke', stock,
+				'stroke-width', n((1 + 1.4 * S('back:weight')()) * c.w, 2),
+				'stroke-opacity', n(0.14 + 0.12 * S('back:op')(), 2)]));
+		});
+		return field + el('rect', fr.concat(['fill', 'url(#' + pid + ')']));
+	}
+
+	// ── the court emblem (ADR 012) ──────────────────────────────────────────
+
+	// A geometric rosette, not a figure: a count reads where a drawing does not at hero scale, and
+	// the corner index carries the rank anyway. Rank IS the ring count — J 1, Q 2, K 3 — and every
+	// seeded count is even, or the panel's 180° symmetry claim breaks.
+	function court(ri, si, c) {
+		var S = c.S, p = c.p, key = RANKS[ri] + SUITS.charAt(si);
+		var rings = ri - 9; // J 1, Q 2, K 3
+		var segs = 6 + 2 * Math.floor(S('court:segs:' + key)() * 4);
+		var spokes = 4 + 2 * Math.floor(S('court:spokes:' + key)() * 3);
+		var phase = S('court:phase:' + key)() * 360 / segs;
+		var gilt = c.col('gilt'), g = '';
+		var pr = n(12 + 8 * S('court:rx:' + key)(), p);
+		g += el('rect', ['x', -130, 'y', -236, 'width', 260, 'height', 472, 'rx', pr,
+			'fill', c.flat ? c.col('stock') : 'none', 'stroke', gilt, 'stroke-width', n(5 * c.w, 2)]);
+		var R0 = [112, 86, 58], dashOuter = S('court:dash:' + key)() < 0.5;
+		for (var k = 0; k < rings; k++) {
+			var rr = R0[k], dash = 2 * Math.PI * rr / segs;
+			g += el('circle', ['r', n(rr, p), 'fill', 'none', 'stroke', gilt, 'stroke-width', n(7 * c.w, 2),
+				'stroke-dasharray', (k === 0 ? dashOuter : k % 2) ? n(dash / 2, 2) + ' ' + n(dash / 2, 2) : null,
+				'transform', 'rotate(' + n(phase, 2) + ')']);
+		}
+		var sp = '', si0 = n(24 + 14 * S('court:spoke0:' + key)(), p), so0 = n(100 + 12 * S('court:spoke1:' + key)(), p);
+		for (var j = 0; j < spokes; j++) {
+			sp += el('path', ['d', 'M0 -' + si0 + ' 0-' + so0,
+				'transform', 'rotate(' + n(phase + j * 360 / spokes, 2) + ')',
+				'fill', 'none', 'stroke', gilt, 'stroke-width', n(4 * c.w, 2)]);
+		}
+		return g + sp;
+	}
+
 	// ── the face ────────────────────────────────────────────────────────────
 
 	// A card body at card-local origin, plus the defs it needs. A spread composes these by
 	// transform and shares one defs block, so a rank glyph and a suit pip are emitted once per
 	// picture however many cards use them (spec: the seam).
-	function face(ri, si, c) {
+	function face(ri, si, c, down) {
+		if (down) return back(c);
 		var o = c.o, add = c.add, suit = c.col(['heart', 'diamond', 'club', 'spade'][si]);
 		var w = c.w, p = c.p, flat = c.flat;
-		var gid = add('g' + ri + si, function () {
-			return el('path', ['id', '%', 'd', G[ri], 'fill', 'none', 'stroke', suit,
+		// the glyph def carries no colour: the <use> does, so one rank serves all four suits and a
+		// 52-card sheet holds 17 paths, not 56 (spec: deck())
+		var gid = add('g' + ri, function () {
+			return el('path', ['id', '%', 'd', G[ri], 'fill', 'none',
 				'stroke-width', n(Math.min(12 * w, 20), 2), 'stroke-linecap', 'round', 'stroke-linejoin', 'round']);
 		});
 		var pid = add('p' + si, function () {
@@ -327,7 +450,8 @@
 
 		// the index block: the rank, and under it a mini pip that is always filled — an outline
 		// at this size fills in and vanishes (ADR 011)
-		var idx = o.index === 'none' ? '' : el('g', ['transform', 'translate(-184 -258)'], el('use', ['href', '#' + gid])) +
+		var idx = o.index === 'none' ? '' : el('g', ['transform', 'translate(-184 -258)'],
+			el('use', ['href', '#' + gid, 'stroke', suit])) +
 			el('g', ['transform', 'translate(-184 -172) scale(0.78)'], el('path', ['d', PIP[si], 'fill', suit]));
 		// the index rides the mirror, which is where the bottom-right one comes from for free;
 		// 'tl' wants one corner only, so it is drawn outside the mirrored group instead
@@ -345,8 +469,12 @@
 			if (so & 2) solo += use(0, -ROW[1]);
 			if (so & 8) solo += use(-COL, 0) + use(COL, 0);
 		}
-		// a court card carries a large centre pip until the emblem lands (M3, ADR 012)
-		if (ri >= 10) solo += el('g', ['transform', 'scale(2.4)'], el('use', ['href', '#' + pid]));
+		// a court card carries its rosette, with the suit pip at the middle of it; `emblem: false`
+		// leaves the centre to a large pip instead (ADR 012)
+		if (ri >= 10) {
+			solo += o.emblem === false ? el('g', ['transform', 'scale(2.4)'], el('use', ['href', '#' + pid]))
+				: court(ri, si, c) + el('g', ['transform', 'scale(1.6)'], el('use', ['href', '#' + pid]));
+		}
 
 		var hid = c.tk();
 		c.defs += el('g', ['id', hid], half);
@@ -410,11 +538,10 @@
 	function card(opts) {
 		var o = opts || {}, c = context(o), rs = pick(o, c.S, '');
 		c.ids(RANKS[rs[0]] + SUITS.charAt(rs[1]));
-		var body = face(rs[0], rs[1], c);
+		var body = face(rs[0], rs[1], c, o.facedown);
 		return wrap(o, c, [-HW, -HH, W, H], body);
 	}
 
-	var CAP = { fan: 10, row: 7 };
 
 	// ── spreads: every layout returns (cx, cy, a) triples and nothing else ──
 
@@ -432,7 +559,7 @@
 		var out = [], i;
 		for (i = 0; i < n0; i++) {
 			var a = lean + i * step, t = a * DEG;
-			out.push([Rp * Math.sin(t), Rp * (1 - Math.cos(t)), a]);
+			out.push([Rp * Math.sin(t) + jit(S, o, i, 6), Rp * (1 - Math.cos(t)) + jit(S, o, i, 6), a + jit(S, o, i, 1)]);
 		}
 		return out;
 	}
@@ -449,9 +576,84 @@
 		var out = [], i, mid = (CAP.row - 1) / 2;
 		for (i = 0; i < n0; i++) {
 			var u = (i - mid) / mid;
-			out.push([i * rev * W, rise * u * u, (i % 2 ? -1 : 1) * tilt]);
+			out.push([i * rev * W + jit(S, o, i, 5), rise * u * u + jit(S, o, i, 5), (i % 2 ? -1 : 1) * tilt + jit(S, o, i, 0.8)]);
 		}
 		return out;
+	}
+
+	// The per-card wobble, keyed by index so raising count never re-rolls a card already placed.
+	// jitter 0 is machine-neat; it scales every layout's own idea of a wobble.
+	function jit(S, o, i, amp) {
+		return (o.jitter == null ? 1 : o.jitter) * amp * (S('spread:jitter:' + i)() - 0.5);
+	}
+
+	// A stack is the folded hand: a small per-card lift along a seeded direction, a little skew,
+	// and a few cards breaking rank. Indices below the top card are hidden by nature — that is
+	// the motif, and it is why `stack` is exempt from the index clearance rule (ADR 007).
+	function stack(n0, S, o) {
+		var lift = 2 + 3 * S('spread:stack:lift')(), skew = -0.35 + 0.7 * S('spread:stack:skew')();
+		var dir = (100 + 40 * S('spread:stack:dir')()) * DEG;
+		var mess = Math.floor(S('spread:stack:mess')() * 4);
+		var out = [], i;
+		for (i = 0; i < n0; i++) {
+			var off = i < mess ? (0.05 + 0.07 * S('spread:stack:off:' + i)()) * W : 0;
+			out.push([i * lift * Math.cos(dir) + off + jit(S, o, i, 6), i * lift * Math.sin(dir) + jit(S, o, i, 6), i * skew + jit(S, o, i, 1)]);
+		}
+		return out;
+	}
+
+	// One behind another, the solitaire column. This is the layout where the index binds: dx may
+	// never fall below IDX, or the rank of every covered card disappears.
+	function cascade(n0, S, o) {
+		var dx = o.reveal == null || o.reveal === 'auto'
+			? Math.max((0.28 + 0.14 * S('spread:cascade:dx')()) * W, IDX)
+			: Math.max(o.reveal * W, 0);
+		var dy = (0.14 + 0.12 * S('spread:cascade:dy')()) * H;
+		var tilt = 2.5 * S('spread:cascade:tilt')();
+		var out = [], i;
+		for (i = 0; i < n0; i++) out.push([i * dx, i * dy, i * tilt]);
+		return out;
+	}
+
+	// A heap. Indices are not guaranteed here and the spec says so — that is what a pile is.
+	// The fourth element is the paint order: a heap is not dealt in sequence. It is a pure
+	// function of the card's own index, so a seventh card slots into the order without moving
+	// the six already there, and painting never learns which layout produced it (ADR 007).
+	function pile(n0, S, o) {
+		var sc = (0.10 + 0.25 * S('spread:pile:scatter')()) * W;
+		var spin = 18 + 22 * S('spread:pile:spin')();
+		var out = [], i;
+		for (i = 0; i < n0; i++) {
+			var a = S('spread:pile:a:' + i)() * 2 * Math.PI, r = Math.sqrt(S('spread:pile:r:' + i)()) * sc;
+			out.push([r * Math.cos(a), r * Math.sin(a), -spin + 2 * spin * S('spread:pile:t:' + i)() + jit(S, o, i, 6),
+				S('spread:pile:z:' + i)()]);
+		}
+		return out;
+	}
+
+	// The blackjack motif: two cards, and a crosswise third for a double-down.
+	function pair(n0, S, o) {
+		var ang = 10 + 16 * S('spread:pair:angle')();
+		var ox = (0.38 + 0.14 * S('spread:pair:offset')()) * W, oy = (-0.02 + 0.08 * S('spread:pair:oy')()) * H;
+		var out = [[0, 0, 0]], i;
+		for (i = 1; i < n0; i++) {
+			out.push(i === 1 ? [ox, oy, ang + jit(S, o, i, 2)]
+				: [(0.24 + 0.04 * i) * W, 0.46 * H, 84 + 12 * S('spread:pair:cross')() + jit(S, o, i, 2)]);
+		}
+		return out;
+	}
+
+	var LAYOUTS = { fan: fan, row: row, stack: stack, cascade: cascade, pile: pile, pair: pair };
+	var CAP = { fan: 10, row: 7, stack: 8, cascade: 13, pile: 12, pair: 3 };
+
+	// `auto` picks by count and is opt-in, not the default: it swings the aspect from 0.9 to 2.3
+	// under a seed change, which breaks a page's reserved box (spec: Spreads).
+	function choose(n0, S) {
+		if (n0 <= 1) return 'fan';
+		if (n0 === 2) return 'pair';
+		var few = ['fan', 'row', 'cascade'], many = ['fan', 'cascade', 'pile'];
+		if (n0 > 10) return 'stack';
+		return (n0 <= 5 ? few : many)[Math.floor(S('spread:kind')() * 3)];
 	}
 
 	// A rectangle's support function is exact: w|cos a| + h|sin a| is its half-extent in x. The
@@ -475,15 +677,30 @@
 		return [n(b[0], p), n(b[1], p), n(w0, p), n(h0, p)];
 	}
 
+	// facedown: 'all' | 'first' | 'last' | a mask like '01101' | an array of indices
+	function downAt(o, i, count) {
+		var f = o.facedown;
+		if (!f || f === 'none') return false;
+		if (f === true || f === 'all') return true;
+		if (f === 'first') return i === 0;
+		if (f === 'last') return i === count - 1;
+		if (typeof f === 'string') return f.charAt(i) === '1';
+		return f.indexOf(i) >= 0;
+	}
+
 	function hand(opts) {
 		var o = opts || {}, c = context(o), i;
 		// cards: an explicit list wins, otherwise distinct cards drawn from the seed
 		var list = [];
 		if (typeof o.cards === 'string') list = o.cards.split(/[\s,]+/);
 		else if (o.cards) list = o.cards.slice();
-		var kind = o.spread === 'row' ? 'row' : 'fan';
+		var kind = o.spread && o.spread !== 'auto' && LAYOUTS[o.spread] ? o.spread : null;
 		var want = list.length || (o.count == null ? 5 : o.count);
-		var count = Math.max(1, Math.min(want, CAP[kind]));
+		if (!kind) kind = o.spread === 'auto' ? choose(want, c.S) : 'fan';
+		// a count over the cap clamps silently; an explicit list never loses a card, the spread
+		// gives way instead — a cascade holds 13, a stack holds any number (spec: Spreads)
+		if (list.length > CAP[kind]) kind = list.length <= CAP.cascade ? 'cascade' : 'stack';
+		var count = list.length || Math.max(1, Math.min(want, CAP[kind]));
 		var codes = [], taken = {};
 		for (i = 0; i < count; i++) {
 			if (list.length) codes.push(list[i]);
@@ -494,22 +711,48 @@
 				codes.push(RANKS[k % 13] + SUITS.charAt(Math.floor(k / 13)));
 			}
 		}
-		c.ids(codes.join(''));
-		var place = (kind === 'row' ? row : fan)(count, c.S, o);
+		c.ids(codes.join('') + kind);
+		var place = LAYOUTS[kind](count, c.S, o);
 		// Round BEFORE framing, so the box is taken from the numbers the file actually carries:
 		// that is what makes "every corner is inside the viewBox" exactly true rather than
 		// true-to-a-rounding (ADR 007).
 		for (i = 0; i < place.length; i++) {
 			place[i][0] = +n(place[i][0], c.p); place[i][1] = +n(place[i][1], c.p); place[i][2] = +n(place[i][2], 2);
 		}
-		var body = '';
-		for (i = 0; i < count; i++) {
+		// paint order comes from the placement itself, never from the layout's name: a triple with
+		// no fourth element paints in index order (ADR 007)
+		var order = [], body = '';
+		for (i = 0; i < count; i++) order.push(i);
+		order.sort(function (a2, b2) {
+			return (place[a2][3] == null ? a2 : place[a2][3]) - (place[b2][3] == null ? b2 : place[b2][3]);
+		});
+		for (var q = 0; q < count; q++) {
+			i = order[q];
 			var rs = pick({ card: codes[i] }, c.S, ':' + i);
 			body += el('g', ['transform', 'translate(' + place[i][0] + ' ' + place[i][1] + ')' +
-				(place[i][2] ? ' rotate(' + place[i][2] + ')' : '')], face(rs[0], rs[1], c));
+				(place[i][2] ? ' rotate(' + place[i][2] + ')' : '')], face(rs[0], rs[1], c, downAt(o, i, count)));
 		}
 		return wrap(o, c, frame(place, o, c.p), body);
 	}
 
-	return { card: card, hand: hand, palette: palette, RANKS: RANKS, SUITS: SUITS, IDX: IDX };
+	// The whole deck as one sheet: 13 columns by 4 rows, one defs block, `detail: 1` by default.
+	// This is its own output class and the spec says so — a hero hand is ~5 KB, a sheet is ~20.
+	function deck(opts) {
+		var o = opts || {}, c = context(o), i, j;
+		var d2 = {};
+		for (i in o) if (Object.prototype.hasOwnProperty.call(o, i)) d2[i] = o[i];
+		if (d2.detail == null) d2.detail = 1;
+		c.o = d2;
+		c.ids('deck');
+		var gap = 40, cw = W + gap, ch = H + gap, body = '';
+		for (j = 0; j < 4; j++) {
+			for (i = 0; i < 13; i++) {
+				body += el('g', ['transform', 'translate(' + (gap + HW + i * cw) + ' ' + (gap + HH + j * ch) + ')'],
+					face(i, j, c, o.facedown === true || o.facedown === 'all'));
+			}
+		}
+		return wrap(d2, c, [0, 0, gap + 13 * cw, gap + 4 * ch], body);
+	}
+
+	return { card: card, hand: hand, deck: deck, palette: palette, RANKS: RANKS, SUITS: SUITS, IDX: IDX };
 });

@@ -10,7 +10,7 @@ project: cards-lite
 Docs for developers and agents. `index.html` is the verification surface, `test/` the gate.
 Contract-first: change the doc here **before** the code, then code.
 
-**Status (2026-09-21): M2 — the face is drawn (index, 13 rank skeletons, pip field and mirror) and the first two spreads, `fan` and `row`, are framed. Courts carry a placeholder centre pip until M3.** This line is kept
+**Status (2026-09-21): M3 — all six spreads, both styles, the court emblem, the card back and `deck()` are in. Motion, the hand presets, `init()` and the types are M4.** This line is kept
 true at every milestone; a spec that still says "SPEC" after shipping (hexagons) is the thing it
 guards against, and one that claims a release it has not made is the same fault pointing the
 other way.
@@ -217,8 +217,9 @@ back alone, because the face is paper in both themes.
 
 The back is the seed's richest work, and its pattern comes from the siblings' own lattices:
 `trigons-lite.js:427`, `hexagons.js:870` and `octagons.js:463` already build SVG path data and
-return a raw SVG string under `opts.raw`. Their `d` builders are copied **verbatim, with their
-seam and cap comments** — both were earned by defects: segments are drawn on *both* opposite tile
+return a raw SVG string under `opts.raw`. Their geometry is carried **unchanged, and so are both
+guardrail comments** — consolidated behind one shared `seg()` (ADR 008 addendum), with the cap rule
+moved to the stroke, which is where caps are decided — both were earned by defects: segments are drawn on *both* opposite tile
 edges so neighbouring tiles sum to full weight, and caps are **butt, not round**, because round
 caps blunt vertices and turn small octagons into circles. What is dropped is the `<svg>` wrapper
 and the data-URI return.
@@ -243,7 +244,7 @@ inset is structural rather than decorative: it keeps the lattice off the card's 
 | Stream | Range |
 |---|---|
 | `back:lattice` | trigon / hex / octagon, equal thirds (option `lattice`, `'auto'` by default) |
-| `back:pitch` | P = 18–34 — 15–28 cells across a card |
+| `back:pitch` | P = 26–56 — 9–19 cells across a card |
 | `back:weight` | 1.0–2.4 units |
 | `back:op` | 0.14–0.26 |
 | `back:turn` · `back:phase` | rotate 0–90° · translate 0–P, via `patternTransform` |
@@ -253,6 +254,12 @@ inset is structural rather than decorative: it keeps the lattice off the card's 
 
 Because the pitch changes every coordinate in the tile, **the back contributes no seed-invariant
 `d`** — which is the fact the no-signature argument below leans on.
+
+The pitch range was 18–34 until M3, when looking at it settled the question: at that density all
+three lattices read as one fine texture and the choice between them was invisible. 26–56 lets the
+motif show. The cost is stated rather than glossed: at the coarse end a 60-unit fan strip holds
+about one cell, not several, so in a tight fan the backs read as the `stock` frame plus a fragment
+of pattern.
 
 At fan width only a 60–90 unit strip of a back shows, so the **`stock` frame is the primary read**,
 not the lattice — a fan of backs reads as a rhythm of white edges, which is how a real fanned deck
@@ -288,9 +295,12 @@ is sampled from a parabola anchored at a **fixed** span rather than at the hand'
 parabola normalised by the count moves every card when one is added, which would break the
 promise below in the one layout that looks most obviously like a straight line.
 
-**Caps:** fan 10, cascade 13, row 7, pile 12, stack 8 — above which `stack` hands off to the deck
-body, an oblique extrusion of ~10 shapes instead of 52 rounded rects. Over a cap `count` clamps
-silently (the house never throws); an explicit `cards` list over the cap switches the *spread*.
+**Caps apply to `count`, not to an explicit list.** fan 10, cascade 13, row 7, pile 12, stack 8.
+Over a cap `count` clamps silently — the house never throws. An explicit `cards` list is never
+truncated: the *spread* gives way instead (cascade up to 13, stack beyond it), and a stack of
+twenty named cards is twenty full cards and weighs like it. The compact alternative — handing a
+long stack off to a **deck body**, an oblique extrusion of ~10 shapes rather than 52 rounded rects
+— is in the backlog, not in v0.1.
 
 `spread: 'auto'` chooses by count and is **opt-in, not the default** (house precedent: `variant`,
 `view`). The reason is concrete: `auto` swings the aspect from 0.94 : 1 to 2.29 : 1 under a seed
@@ -376,7 +386,9 @@ Cards.init(el, opts)             // browser → {el, get(), set(opts), destroy()
 `mark()` is backlog: roulette added its emblem at M5 and paid a budget raise for it.
 
 `deck()` is **its own output class** and says so: 13 × 4 cards, one defs block, `detail: 1` by
-default, 18–28 KB raw — against ≤ 6 KB for a five-card hand. The per-picture ceiling is stated per
+default, **~47 KB raw measured at M3** — against ~4.5 KB for a five-card hand. The earlier 18–28 KB
+estimate was wrong: 52 cards at ~880 B each is what a sheet costs once every card carries an index
+block and a pip field of its own. The per-picture ceiling is stated per
 card, not per output, and `deck()` is the one call that puts all 17 fixed paths in one file, which
 makes the no-signature test inspectable by eye.
 
@@ -425,7 +437,13 @@ Shared by `card()`, `hand()` and `deck()`:
   `salt`, so two *different* cards under one seed can never collide on a page — a page that lays
   out a deck by calling `card()` 52 times would otherwise have every `<use>` resolve to the first
   card in the document. `salt` remains for the case it cannot solve: the same card twice.
-- `count` **appends; it does not re-deal.** Guaranteed because the fan is anchored at card 0
+- A placement is `(cx, cy, a)`, and may carry a fourth element: its **paint order**, which is how
+  a heap is painted out of sequence without painting learning the layout's name (ADR 007 addendum).
+- `count` **appends; it does not re-deal** — within a named spread, including the pile's paint
+  order. `spread: 'auto'` is the one exemption, and by construction: it chooses the layout *from* the count, so adding a card may
+  hand the picture to another layout. That is what `auto` is for, and it is the second reason
+  (after the aspect swing) that it is opt-in rather than the default.
+  The guarantee holds because the fan is anchored at card 0
   (`a_i = lean + i·Δ`) rather than centred — `frame()` recentres the picture, so anchoring costs
   nothing visually — and pinned on *relative* placements, which is the honest form.
 - No `Math.random`, no `Date`. The default seed is fixed: a build must reproduce.
@@ -458,8 +476,8 @@ contribute **zero** seed-invariant `d` values.
 - Library: budget in `package.json` `config.sizeBudget`, measured by `npm run size` (terser in
   process + gzip level 9 — never the `gzip` CLI, whose header carries the file name). **Provisional
   7680 B**, frozen at measured + 2.5% after the milestone that lands face, back and motion (ADR 009).
-- Output: ≤ 6 KB raw for a five-card hand, ≤ 10 KB for a thirteen-card cascade, 18–28 KB for
-  `deck()`'s sheet.
+- Output: ≤ 6 KB raw for a five-card hand, ≤ 10 KB for a thirteen-card cascade, ~47 KB for
+  `deck()`'s sheet (measured M3).
 
 ## Promotion
 

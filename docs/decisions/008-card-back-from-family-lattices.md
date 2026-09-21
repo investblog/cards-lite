@@ -40,3 +40,20 @@ Measured: all three lattices plus the emitter cost **633 B** gzip \u2014 the sec
 - Both lattice kinds draw from the same roles (`stock` on `back`), or a seed-only change would
   alter the set of colours and break the determinism test.
 - A source comment names the sibling and line each builder came from. Never in the output.
+
+## Addendum — 2026-09-21: "verbatim" was too strong a word
+
+What shipped is not a literal copy of three functions, and an external review was right to say the
+ADR claimed otherwise. What was actually carried:
+
+- **The geometry, unchanged** — the same segments, the same constants (`A_REG`, `SQRT3`), the same
+  half-cell and corner-cut construction. The three branches now sit behind one shared `seg()`
+  helper instead of three private ones, because a single emitter is what lets one `<pattern>` serve
+  all three kinds.
+- **Both guardrail comments, carried to where they still apply** — the seam rule stays on the
+  geometry it describes, and the butt-cap rule moved to the stroke in `back()`, which is where caps
+  are now decided. The reference is `octagons.js:508`; an earlier note in the source said 470,
+  which is the `nodes` option, not the cap comment.
+
+The decision itself stands: the arithmetic was never the valuable part — the two comments were,
+and they are the thing that had to survive the port intact.

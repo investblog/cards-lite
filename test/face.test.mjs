@@ -61,11 +61,20 @@ test('the mirror: one group, used twice, the second turned 180°', () => {
 	assert.ok(svg.includes(`<use href="#${id}" transform="rotate(180)"/>`));
 });
 
-test('courts carry no pip field, and index:none / pips:false remove what they say', () => {
-	for (const rank of ['J', 'Q', 'K']) {
+test('courts carry a rosette whose ring count is the rank, and emblem:false falls back to a pip', () => {
+	for (const [rank, rings] of [['J', 1], ['Q', 2], ['K', 3]]) {
 		const svg = Cards.card({ card: rank + 'd', seed: 4 });
-		assert.ok(svg.includes('scale(2.4)'), `${rank} has its placeholder centre pip`);
+		assert.equal((svg.match(/<circle r=/gu) || []).length, rings, `${rank} draws ${rings} ring(s)`);
+		assert.ok(svg.includes('scale(1.6)'), `${rank} carries the suit at the middle of the rosette`);
+		// every seeded count is even, or the panel's 180 degree symmetry claim breaks (ADR 012)
+		// Counted by shape, not by a literal `d`: the radii are seeded, so a literal matches
+		// nothing and the evenness check passes on zero — which is how it was first written,
+		// and what the Codex review caught.
+		const spokes = (svg.match(/ d="M0 -[\d.]+ 0-[\d.]+"/gu) || []).length;
+		assert.ok(spokes >= 4, `${rank} draws spokes at all, got ${spokes}`);
+		assert.equal(spokes % 2, 0, `${rank} has an even spoke count, got ${spokes}`);
 	}
+	assert.ok(Cards.card({ card: 'Kd', seed: 4, emblem: false }).includes('scale(2.4)'));
 	const bare = Cards.card({ card: '9c', seed: 4, index: 'none', pips: false });
 	assert.doesNotMatch(bare, /translate\(-184/u, 'no index block');
 	const tl = Cards.card({ card: '9c', seed: 4, index: 'tl' });

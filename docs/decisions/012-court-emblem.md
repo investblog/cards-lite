@@ -28,3 +28,21 @@ radius.
 - The emblem must contribute zero seed-invariant `d` values \u2014 ADR 005's test depends on it.
 - A count reads where a figure does not at hero scale, and the corner index carries the rank
   anyway.
+
+## Addendum — 2026-09-21: M3, what the screen changed
+
+Three numbers moved when the emblem was first looked at, and an external review (Codex) caught
+that the ADR still described the original ones.
+
+- **The centre suit pip is 1.3× → 1.6×, and the rosette's strokes roughly doubled** (rings 3 → 7,
+  spokes 1.6 → 4, panel rule 2.5 → 5). At hand scale a court is ~60 px wide, where a 3-unit
+  hairline is a third of a pixel: the emblem vanished and the card read as blank apart from its
+  index. This is the same rule the mini pip already follows (ADR 011) — an outline at fan size
+  fills in or disappears.
+- **The outer ring is now seeded dashed or solid.** Without it `segs` changed nothing at all on a
+  Jack, which has one ring: a seeded parameter that cannot be seen is not seeded, it is dead.
+- **Corner rosettes are dropped.** At the size a court is actually seen they are noise, and the
+  panel's job is to read as a block, not to carry detail.
+
+The spoke radii are seeded too, which the original text did not require but ADR 005 does: a
+constant spoke was an 18th fixed path in a library that allows exactly 17.
