@@ -155,8 +155,11 @@ test('ink and every suit clear the contrast floor against the stock, right round
 			const p = Cards.palette(brand, { theme });
 			for (const role of ['ink', 'heart', 'diamond', 'club', 'spade']) {
 				const r = ratio(p[role], p.stock);
-				if (r < worst) { worst = r; where = `${role} on ${brand || 'default'} (${theme})`; }
-				assert.ok(r >= 3, `${where}: ${r.toFixed(2)}:1 against the stock`);
+				const pair = `${role} on ${brand || 'default'} (${theme})`;
+				if (r < worst) { worst = r; where = pair; }
+				// the message names THIS pair: `where` holds the best-known minimum, so using it here
+				// would blame a different brand for the failure and send the reader to the wrong place
+				assert.ok(r >= 3, `${pair}: ${r.toFixed(2)}:1 against the stock`);
 			}
 		}
 	}

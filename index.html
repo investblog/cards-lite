@@ -76,7 +76,9 @@
 		var stage = document.getElementById('stage'), mode = document.getElementById('mode');
 		var seedInput = document.querySelector('[data-k=seed]'), bytes = document.getElementById('bytes');
 
-		function seedValue() { return /^\d+$/.test(opts.seed) ? Number(opts.seed) : opts.seed; }
+		// an empty field is not a seed: it fell through to the string branch and captioned the
+		// contact sheet '-0' to '-23'
+		function seedValue() { return /^\d+$/.test(opts.seed) ? Number(opts.seed) : (opts.seed || 1); }
 		// an explicit list wins over a preset, a preset over a count — the library's own order,
 		// so an empty field must be left out rather than passed as ''
 		function live(extra) {
@@ -105,7 +107,9 @@
 				var num = typeof o.seed === 'number';
 				for (i = 0; i < 24; i++) {
 					var s = num ? o.seed + i : o.seed + '-' + i;
-					html += tile(Cards.hand(live({ seed: s })), String(s), num ? s : null);
+					// a string seed is clickable too — seedValue() passes it through unchanged, and a
+					// tile that shows a pointer and does nothing is worse than no pointer
+					html += tile(Cards.hand(live({ seed: s })), String(s), s);
 				}
 			} else if (mode.value === 'spreads') {
 				stage.className = 'sheet';
@@ -131,8 +135,11 @@
 			stage.innerHTML = html;
 			// what is on screen, not one hand of it: the sheet modes were reporting a single
 			// hand's bytes for 24 tiles — and rendering a 25th hand purely to be measured
-			var tiles = stage.querySelectorAll('figure').length;
-			bytes.textContent = html.length + ' bytes of SVG' + (tiles > 1 ? ' in ' + tiles + ' pictures' : '');
+			// the SVG itself, not the <figure>/<figcaption> around it: in the sheet modes the
+			// wrappers are some 1.5 kB that is not the library's output
+			var svgs = stage.querySelectorAll('svg'), total = 0;
+			for (var k = 0; k < svgs.length; k++) total += svgs[k].outerHTML.length;
+			bytes.textContent = total + ' bytes of SVG' + (svgs.length > 1 ? ' in ' + svgs.length + ' pictures' : '');
 		}
 		function setSeed(v) { opts.seed = String(v); seedInput.value = opts.seed; render(); }
 

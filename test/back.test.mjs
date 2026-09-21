@@ -80,15 +80,27 @@ test('every spread frames its cards, whatever the layout', () => {
 // `pile` and `stack`. Not by a proxy on dx — by carrying the index's own five points into layout
 // space and then into the local space of every card painted after it, which is the only form that
 // survives a layout gaining rotation.
+// The glyph's em, not the whole IDX strip: five points are a necessary condition, not a
+// sufficient one (two rectangles can overlap with no corner of either inside the other), and
+// 64 units wide is narrower than the 140 a layout reserves. So this proves something weaker
+// than the criterion states — enough to pin a regression, not enough to be the criterion.
 const EM = [[-216, -306], [-152, -306], [-152, -210], [-216, -210], [-184, -258]];
-function placements(svg) {
-	const body = svg.slice(svg.indexOf('</defs>'));   // <defs> carries groups of its own
-	return [...body.matchAll(/<g transform="translate\((-?[\d.]+) (-?[\d.]+)\)(?: rotate\((-?[\d.]+)\))?"/gu)]
+function placements(svg, want) {
+	// `indexOf` returns -1 when there is no <defs> at all — `facedown: 'all', detail: 1` emits
+	// none — and slice(-1) then hands back one character, so this found NO cards and the caller
+	// happily reported nothing buried. `index: 'tl'` goes the other way and puts a second group
+	// per card in the body, which read as six cards out of three. Both are counted now: a helper
+	// one option away from proving nothing is the exact thing this file exists to catch.
+	const cut = svg.indexOf('</defs>');
+	const body = cut < 0 ? svg : svg.slice(cut);
+	const P = [...body.matchAll(/<g transform="translate\((-?[\d.]+) (-?[\d.]+)\)(?: rotate\((-?[\d.]+)\))?"/gu)]
 		.map((m) => [Number(m[1]), Number(m[2]), Number(m[3] || 0) * Math.PI / 180]);
+	assert.equal(P.length, want, `expected ${want} card placements, read ${P.length}`);
+	return P;
 }
 // how deep the index point sits inside a later card: positive means covered
-function buriedDepth(svg) {
-	const P = placements(svg);
+function buriedDepth(svg, want) {
+	const P = placements(svg, want);
 	let deepest = -1e9;
 	for (let i = 0; i < P.length; i++) {
 		const [cx, cy, a] = P[i], co = Math.cos(a), si = Math.sin(a);
@@ -109,7 +121,9 @@ test('no overlapping spread covers an index, over 60 seeds and three counts', ()
 	for (const spread of ['fan', 'row', 'cascade', 'pair']) {
 		for (let seed = 1; seed <= 60; seed++) {
 			for (const count of [2, 3, 5]) {
-				const d = buriedDepth(Cards.hand({ seed, spread, count }));
+				// `pair` caps at three, so that is what the picture really holds
+				const want = spread === 'pair' ? Math.min(count, 3) : count;
+				const d = buriedDepth(Cards.hand({ seed, spread, count }), want);
 				assert.ok(d < 0, `${spread} seed ${seed} count ${count}: an index is ${Math.round(d)} units under a later card`);
 			}
 		}
@@ -121,7 +135,7 @@ test('and pile and stack DO cover one — the exemption is the motif, not an ove
 	// the spec has become a claim about nothing.
 	for (const spread of ['pile', 'stack']) {
 		let covered = 0;
-		for (let seed = 1; seed <= 60; seed++) if (buriedDepth(Cards.hand({ seed, spread, count: 5 })) > 0) covered++;
+		for (let seed = 1; seed <= 60; seed++) if (buriedDepth(Cards.hand({ seed, spread, count: 5 }), 5) > 0) covered++;
 		assert.ok(covered > 30, `${spread}: only ${covered} of 60 seeds hide an index`);
 	}
 });

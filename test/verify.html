@@ -219,7 +219,11 @@ false PASS.</p>
 			c.innerHTML = C.hand({ seed: 3, count: 5, motion: 'deal', size: 320 });
 			await wait(20);
 			var reduced = matchMedia('(prefers-reduced-motion: reduce)').matches;
-			check('the deal never leaves the viewBox, sampled while it runs', function () {
+			// under reduced motion there is no animation to scrub, so the name says which of the two
+			// this run is: a check whose title is broader than its measurement is how this file got
+			// into trouble in the first place
+			check('the deal never leaves the viewBox' + (reduced
+				? ' (reduced motion: the static frame)' : ', sampled while it runs'), function () {
 				// Every card, in viewBox units, at its OWN place in the run. The first version of
 				// this check took `g > g` — which document order puts inside <defs>, an index
 				// block that is never rendered and never animated — and compared its getCTM()
