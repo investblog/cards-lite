@@ -547,7 +547,7 @@ brand to twenty-eight.
 WebKit, twice each** — once normally and once under `prefers-reduced-motion`, because the reduced
 path is a different branch and a branch nobody runs is a branch nobody knows about.
 
-**`--mutate` is the part that matters.** It breaks `cards.js` on purpose, one anchor at a time —
+**`--mutate` is the part that matters.** It breaks `cards.js` thirteen ways, one anchor at a time —
 the deck missing from the exports, an unclosed `<defs>`, the index clamp cut, pins ignored, pips
 unpainted, the M4 deal restored, the reduced-motion gate removed — and reports any check that
 never went red. Five checks in this repo once passed against a library that was broken; each

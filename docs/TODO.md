@@ -47,6 +47,9 @@ the way.
   only for `cascade`, and by a proxy on `dx`: it now carries the index's five points into every
   later card's own space — `fan`, `row`, `cascade`, `pair` clear over 60 seeds × three counts,
   and `pile`/`stack` are asserted to cover, so the exemption stays a measured fact.
+  Reviewed in turn, and the runner had the very defect it exists to catch: `restore()` ran in an
+  unconditional `finally` as `git checkout -- cards.js`, so a plain run would have discarded
+  whatever was uncommitted in the file. It snapshots the bytes now and never touches git.
   The plan's palette-parity fixture landed too: `Cards.palette(b).stroke`, `.background` and
   `.halo` are byte-identical to `Hexagons.palette(b)` in all 16 brand × theme cases, pinned in
   `test/fixtures/palette-parity.json` from hexagons @ 9f9b933 so the test needs no sibling repo.
