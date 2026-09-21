@@ -10,9 +10,10 @@ project: cards-lite
 Docs for developers and agents. `index.html` is the verification surface, `test/` the gate.
 Contract-first: change the doc here **before** the code, then code.
 
-**Status (2026-09-21): M5 — the browser gate is ALL GREEN in Chromium, Firefox and WebKit, in
-both motion modes; the playground, the CI and release workflows and the public docs are in.
-Nothing is published.** What
+**Status (2026-09-21): M5 done, and the repository is public** — `investblog/cards-lite`, CI green
+on `main`, the playground live at <https://investblog.github.io/cards-lite/>. The browser gate is
+ALL GREEN in Chromium, Firefox and WebKit in both motion modes. **Nothing is published to npm:**
+the package name is still free and the version is deliberately `0.0.0` until the release bump. What
 remains is M6: a first integration in a static site, then the 0.1.0 release — the repository, the
 token and the publish each on the maintainer's go (`RELEASING.md`). This line is kept
 true at every milestone; a spec that still says "SPEC" after shipping (hexagons) is the thing it

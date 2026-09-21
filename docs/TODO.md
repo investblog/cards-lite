@@ -56,6 +56,16 @@ the way.
 - [ ] `split` — two hands side by side. Every layout places one group, so it waits for a two-group
   layout rather than being faked with four cards in a row (spec: Hands).
 - [ ] M6 — first integration in a static site, then release 0.1.0.
+  - [x] the public repository, 2026-09-21: `investblog/cards-lite`, dressed like the siblings
+    (public, default `main`, one-line description with the measured size, homepage and Pages from
+    the root of `main`, topics from `package.json` keywords — which the two newest siblings are
+    missing). CI green on the first push; Pages answer 200 and the playground draws.
+  - [ ] the integration, then the release — `RELEASING.md`, and **`npm version minor` before the
+    bootstrap publish**, or 0.0.0 goes to the registry for good.
+- [ ] **`actions/checkout@v4` and `actions/setup-node@v4` are on deprecated Node 20** — GitHub
+  forces them onto Node 24 for now and annotates every run. v5 is the fix, and it is the whole
+  family's problem, not this repo's alone: the same pin sits in all five. Worth doing as one
+  pass, the way ADR 001 made this repo the eslint-10 pilot.
 
 ## Re-ported when needed
 
