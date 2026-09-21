@@ -14,9 +14,9 @@ the way.
 
 - [x] M0 — bootstrap, spec, ADRs 001–012, the engine port, `card()` blank, `palette()`, 9 tests,
   provisional budget 7680 B, measured 3108 B (2026-09-21)
-- [ ] M1 — the role table prototyped **outside** the library on pins: seven brands × both themes,
-  shown to the user, who chooses before `roles()` is finalised. The 265° diamond centre is decided
-  here (ADR 006).
+- [x] M1 — the role table prototyped outside the library and decided by the user (2026-09-21):
+  265° confirmed by measurement, unclaimed suits tinted ±15° toward the brand, gilt raised from
+  L 40 to L 58. Recorded as an ADR 006 addendum; 11 tests.
 - [ ] M2 — the face: index block, the 13 rank skeletons, the pip field and its mirror; `row` and
   `fan`; the framing pass. Visual gates: 10♦ gutter, a 52-card sheet at three sizes, weight
   0.6/1/1.7/2.5 on 6-8-9-0.

@@ -219,17 +219,26 @@
 		var chrome = grey && free[0] && !gold;
 		var bC = key[1], bH = key[2];
 		var clamp = function (v, lo, hi) { return Math.max(lo, Math.min(hi, v)); };
+		// An unclaimed suit leans toward the brand by at most 15 degrees along the shorter arc.
+		// One or two brand colours capture one or two suits, so without this the brand reached the
+		// back and almost nothing else (M1). The classic centres are 117 degrees apart at worst, so
+		// no shift can make two suits collide; an achromatic brand has no hue to lean toward.
+		var tint = function (hue) {
+			if (bC < 12) return hue;
+			var d = ((bH - hue + 540) % 360) - 180;
+			return (hue + clamp(d, -15, 15) + 360) % 360;
+		};
 		var stock = lch2rgb(96.5, Math.min(bC * 0.08, 4), bH);
 		var ink = ensureContrast(lch2rgb(34, Math.min(bC * 0.25, 10), bH), stock, 3, -1);
 		var suit = function (c, L, fallbackC, lo, hi, hue) {
-			return ensureContrast(c ? lch2rgb(L, c[1], c[2]) : lch2rgb(L, clamp(fallbackC, lo, hi), hue), stock, 3, -1);
+			return ensureContrast(c ? lch2rgb(L, c[1], c[2]) : lch2rgb(L, clamp(fallbackC, lo, hi), tint(hue)), stock, 3, -1);
 		};
 		return {
 			heart: suit(heart, 46, bC * 1.2, 50, 75, 28),
 			diamond: suit(diamond, 48, bC * 1.1, 45, 70, 265),
 			club: suit(club, 45, bC, 35, 60, 145),
 			spade: ensureContrast(lch2rgb(14, Math.min(bC * 0.15, 6), bH), stock, 7, -1),
-			gilt: ensureContrast(lch2rgb(40, gold ? gold[1] * 0.8 : bC && !chrome ? 35 : 0, gold ? gold[2] : 85), stock, 2, -1),
+			gilt: ensureContrast(lch2rgb(58, gold ? gold[1] * 0.8 : bC && !chrome ? 35 : 0, gold ? gold[2] : 85), stock, 2, -1),
 			stock: stock, ink: ink,
 			back: p.colors[0], panel: free[1] ? derive(free[1].hex, dk).colors[0] : p.colors[0],
 			stroke: p.colors, background: p.background, halo: p.halo

@@ -88,3 +88,42 @@ test('nothing in the output names the tool (ADR 005)', () => {
 		assert.doesNotMatch(out, /<!--|<desc|<metadata|data-|xlink|version=|cards-lite|spintax|301\.st/iu, `seed ${seed}`);
 	}
 });
+
+test('an unclaimed suit leans toward the brand, but never far enough to change what it is', () => {
+	// terracotta is captured by gilt (21°) over heart (36°), so all three suits fall back and tint
+	const warm = Cards.palette('#d97706'), cool = Cards.palette('#1d4ed8');
+	assert.notEqual(warm.club, cool.club, 'the fallback club follows the brand');
+	// hue stays inside the suit's own window: a red is still a red, a green still a green
+	const hue = (hex) => {
+		const [r, g, b] = hex.slice(1).match(/../gu).map((h) => parseInt(h, 16) / 255)
+			.map((u) => (u <= 0.04045 ? u / 12.92 : ((u + 0.055) / 1.055) ** 2.4));
+		const f = (t) => (t > 216 / 24389 ? Math.cbrt(t) : (24389 / 27 * t + 16) / 116);
+		const X = 0.4124 * r + 0.3576 * g + 0.1805 * b, Y = 0.2126 * r + 0.7152 * g + 0.0722 * b,
+			Z = 0.0193 * r + 0.1192 * g + 0.9505 * b;
+		const A = 500 * (f(X / 0.9505) - f(Y)), B = 200 * (f(Y) - f(Z / 1.089));
+		return (Math.atan2(B, A) * 180 / Math.PI + 360) % 360;
+	};
+	const away = (h, c) => { const d = Math.abs(h - c) % 360; return Math.min(d, 360 - d); };
+	for (const brand of ['#d97706', '#1d4ed8', '#2f9e44', '#7c3aed', '#a91455']) {
+		const p = Cards.palette(brand);
+		assert.ok(away(hue(p.heart), 28) <= 45, `heart stays red for ${brand}: ${p.heart}`);
+		assert.ok(away(hue(p.club), 145) <= 45, `club stays green for ${brand}: ${p.club}`);
+	}
+	// an achromatic brand has no hue to lean toward, so it does not shift
+	assert.equal(Cards.palette('#8a8a8a').club, Cards.palette('#4a4a4a').club);
+});
+
+test('gilt reads as gold and stays ornament: above its floor, below the pips (M1)', () => {
+	const lum = (hex) => {
+		const [r, g, b] = hex.slice(1).match(/../gu).map((h) => parseInt(h, 16) / 255)
+			.map((u) => (u <= 0.04045 ? u / 12.92 : ((u + 0.055) / 1.055) ** 2.4));
+		return 0.2126 * r + 0.7152 * g + 0.0722 * b;
+	};
+	const ratio = (a, b) => (Math.max(lum(a), lum(b)) + 0.05) / (Math.min(lum(a), lum(b)) + 0.05);
+	for (const brand of [undefined, '#00abf3', '#d97706', '#8a8a8a']) {
+		const p = Cards.palette(brand);
+		const g = ratio(p.gilt, p.stock);
+		assert.ok(g >= 2, `gilt holds its hairline floor for ${brand}: ${g.toFixed(2)}`);
+		assert.ok(g < ratio(p.spade, p.stock), 'gilt never competes with a pip');
+	}
+});

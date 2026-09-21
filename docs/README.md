@@ -10,7 +10,7 @@ project: cards-lite
 Docs for developers and agents. `index.html` is the verification surface, `test/` the gate.
 Contract-first: change the doc here **before** the code, then code.
 
-**Status (2026-09-21): M0 — spec and ADRs written, the library is a stub.** This line is kept
+**Status (2026-09-21): M1 — the four-colour palette is decided and in the library; the face is still a blank.** This line is kept
 true at every milestone; a spec that still says "SPEC" after shipping (hexagons) is the thing it
 guards against, and one that claims a release it has not made is the same fault pointing the
 other way.
@@ -129,18 +129,31 @@ fill them, by the capture algorithm of roulette's ADR 011: chromatic brand colou
 candidate; the nearest pairs are settled first, each colour and each role at most once; ties break
 by colour order then role order, so the result never depends on the engine's sort.
 
-| Role | Target hue | Window | A captured colour keeps | Otherwise — the classic hue in the brand's key |
+| Role | Target hue | Window | A captured colour keeps | Otherwise — the classic hue, **tinted**, in the brand's key |
 |---|---|---|---|---|
-| `heart` | 28° | ±40 | hue and chroma, L 46 | lch(46, clamp(bodyC·1.2, 50, 75), 28) |
-| `diamond` | 265° | ±50 | hue and chroma, L 48 | lch(48, clamp(bodyC·1.1, 45, 70), 265) |
-| `club` | 145° | ±40 | hue and chroma, L 45 | lch(45, clamp(bodyC, 35, 60), 145) |
-| `gilt` | 85° | ±25 | hue, chroma ×0.8, L 40 always | lch(40, 35, 85); chrome (C 0) for a grey brand |
+| `heart` | 28° | ±40 | hue and chroma, L 46 | lch(46, clamp(bodyC·1.2, 50, 75), tint(28)) |
+| `diamond` | 265° | ±50 | hue and chroma, L 48 | lch(48, clamp(bodyC·1.1, 45, 70), tint(265)) |
+| `club` | 145° | ±40 | hue and chroma, L 45 | lch(45, clamp(bodyC, 35, 60), tint(145)) |
+| `gilt` | 85° | ±25 | hue, chroma ×0.8, **L 58 always** | lch(58, 35, 85); chrome (C 0) for a grey brand |
+
+**`tint(hue)` leans an unclaimed suit toward the brand** by at most 15° along the shorter arc,
+and not at all for an achromatic brand, which has no hue to lean toward. One or two brand colours
+can capture only one or two suits, so without this the brand reached the back and almost nothing
+else — visible at M1, where the single-blue, terracotta, green and grey decks came out with nearly
+identical faces. 15° is small enough that a red stays red (the nearest classic centres are 117°
+apart, so no shift can make two suits collide) and large enough that a terracotta brand tilts the
+whole deck warm.
+
+**Gilt is L 58, not L 40** — measured at M1: L 40 lands on `#745b00`, which is olive rather than
+gold, and its contrast against paper is **5.96**, so the ≥ 2.0 guard was never what made it dark.
+L 58 lands near `#c9a227` at contrast 2.2 — above the floor for a role that, by this ADR, is only
+ever ornament and never carries a pip or an index.
 
 The diamond window is wider because the blue–indigo region is perceptually broad and nothing
-competes there: 215–315 catches cyan-blue (`#00abf3`, H 256), royal blue (`#1d4ed8`, H 296) and
-violet (`#7c3aed`, H 309), leaving a 30° gap to clubs. **The 265° centre is an assumption to
-prototype at M1, not a measurement** — ADR 011 settled roulette's windows by putting seven brands
-in front of the user, and this follows that process.
+competes there. **Confirmed at M1 by measurement**, against three candidate centres: only 265°
+captures all of teal (`#0891b2`, H 218, 47° away), royal blue (`#1d4ed8`, H 296, 31°), indigo
+(`#4338ca`, H 303, 38°) and violet (`#7c3aed`, H 309, 44°). A 250° centre drops indigo and violet;
+280° drops teal. The window leaves a 30° gap to clubs.
 
 **Three roles are always derived and never a brand colour** — they are the constants the subject
 is read by:
