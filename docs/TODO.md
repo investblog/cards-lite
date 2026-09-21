@@ -17,9 +17,10 @@ the way.
 - [x] M1 — the role table prototyped outside the library and decided by the user (2026-09-21):
   265° confirmed by measurement, unclaimed suits tinted ±15° toward the brand, gilt raised from
   L 40 to L 58. Recorded as an ADR 006 addendum; 11 tests.
-- [ ] M2 — the face: index block, the 13 rank skeletons, the pip field and its mirror; `row` and
-  `fan`; the framing pass. Visual gates: 10♦ gutter, a 52-card sheet at three sizes, weight
-  0.6/1/1.7/2.5 on 6-8-9-0.
+- [x] M2 — the face and the first two spreads (2026-09-21): index block, 13 rank skeletons, the
+  packed pip field and its mirror, `fan`, `row`, the framing pass, `hand()`. Visual gates passed
+  in Chromium: the 52-card sheet at 108/64/40 px, the 10♦ gutter, the weight ladder. 21 tests,
+  5586 B. `tokens()` and `DEG` re-ported; `INSET` still unused and still on this list.
 - [ ] M3 — all six spreads + `auto`, both styles, the court emblem, the three-lattice back,
   `deck()`, the caps and the aspect table.
 - [ ] M4 — presets, motion, `init()`, types, the determinism and 17-path tests, **budget frozen**.
@@ -32,9 +33,8 @@ the way.
 Kept out of M0 on purpose — the family rule is that nothing speculative is carried, and lint
 enforces it:
 
-- `tokens()` (roulette.js:269-282) — seeded ids, needed once `<defs>` or a `<pattern>` appears (M2/M3).
-- `DEG` — needed by the spread engine's trigonometry (M2).
-- `INSET` — needed by the live-area layout (M2).
+- `INSET` — the live-area inset; nothing lays out against it yet. Comes back with the court panel
+  and the back frame (M3).
 
 ## Later (not v0.1)
 

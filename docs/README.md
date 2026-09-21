@@ -10,7 +10,7 @@ project: cards-lite
 Docs for developers and agents. `index.html` is the verification surface, `test/` the gate.
 Contract-first: change the doc here **before** the code, then code.
 
-**Status (2026-09-21): M1 — the four-colour palette is decided and in the library; the face is still a blank.** This line is kept
+**Status (2026-09-21): M2 — the face is drawn (index, 13 rank skeletons, pip field and mirror) and the first two spreads, `fan` and `row`, are framed. Courts carry a placeholder centre pip until M3.** This line is kept
 true at every milestone; a spec that still says "SPEC" after shipping (hexagons) is the thing it
 guards against, and one that claims a release it has not made is the same fault pointing the
 other way.
@@ -276,14 +276,17 @@ exempt below its top card for the same reason.
 | Spread | Seeded parameters | Typical aspect, 5 cards |
 |---|---|---|
 | `fan` | `arc` 1.6–2.6 × H · `reveal` 0.34–0.62 (the step is derived: `Δ = degrees(reveal·W/Rp)`, landing at 5.3–15.9°) · `lean` ±10° | 1.4 : 1 |
-| `row` | `reveal` 0.32–0.62 · `rise` 0–0.05 H parabolic · `tilt` ±0–3° alternating | 2.3 : 1 |
+| `row` | `reveal` 0.32–0.62 · `rise` 0–0.05 H, sampled from a **fixed** parabola · `tilt` ±0–3° alternating | 2.3 : 1 |
 | `cascade` | `dx` 0.28–0.42 W (**floor is `IDX`** — the layout where the index binds) · `dy` 0.14–0.26 H · `tilt` 0–2.5° accumulating | 0.94 : 1 |
 | `stack` | `lift` 2–5 units/card · `skew` ±0.35°/card · `dir` 100–140° · `mess` 0–3 cards breaking rank | 0.75 : 1 |
 | `pile` | `scatter` 0.10–0.35 W in a disc · `spin` ±18–40° · a seeded z permutation | 0.93 : 1 |
 | `pair` | `angle` 10–26° · `offset` (0.38–0.52 W, −0.02…+0.06 H) · a crosswise third for double-down | 1.01 : 1 |
 
 Per-card wobble comes from an **indexed** key (`spread:jitter:3`), never a loop over one stream,
-so bumping `count` does not re-roll the cards already placed.
+so bumping `count` does not re-roll the cards already placed. For the same reason the row's rise
+is sampled from a parabola anchored at a **fixed** span rather than at the hand's own midpoint: a
+parabola normalised by the count moves every card when one is added, which would break the
+promise below in the one layout that looks most obviously like a straight line.
 
 **Caps:** fan 10, cascade 13, row 7, pile 12, stack 8 — above which `stack` hands off to the deck
 body, an oblique extrusion of ~10 shapes instead of 52 rounded rects. Over a cap `count` clamps
@@ -399,7 +402,7 @@ Shared by `card()`, `hand()` and `deck()`:
 | `size` | — | width; the height follows the viewBox |
 | `fit`, `pad` | `'tight'`, `0.06` | framing |
 | `precision` | `0` | decimals for coordinates (angles are always 2) |
-| `salt` | `''` | extra entropy for ids — two pictures with one seed on one page |
+| `salt` | `''` | extra entropy for ids — two pictures of **the same card** with one seed on one page |
 | `title` | — | `role="img"` + escaped `aria-label`; otherwise `aria-hidden="true"` |
 
 `card()` adds `card` (`'QH'`, `'10S'`, `'??'`), `rank`, `suit`, `facedown`, `emblem`, `angle`.
@@ -418,6 +421,10 @@ Shared by `card()`, `hand()` and `deck()`:
 - **Per-card *identity* values are keyed by the card, not the slot** (`card:emblem:QH`). The queen
   of hearts keeps her emblem and her corner radius wherever she appears under one seed — in
   `card()`, in a fan, in a pile.
+- **Ids are keyed by the card too.** The token stream is seeded with the rank and suit as well as
+  `salt`, so two *different* cards under one seed can never collide on a page — a page that lays
+  out a deck by calling `card()` 52 times would otherwise have every `<use>` resolve to the first
+  card in the document. `salt` remains for the case it cannot solve: the same card twice.
 - `count` **appends; it does not re-deal.** Guaranteed because the fan is anchored at card 0
   (`a_i = lean + i·Δ`) rather than centred — `frame()` recentres the picture, so anchoring costs
   nothing visually — and pinned on *relative* placements, which is the honest form.
