@@ -291,17 +291,17 @@
 	];
 
 	// Suit pips are FILLED (or stroked in line style), authored on a 72×80 box: x ±36, y ±40.
-	// The club and the spade are traditional glyphs the user supplied, retargeted from the 76×76
+	// All four are traditional glyphs the user supplied, retargeted from the 76×76
 	// top-left box they were drawn in: every number scaled by 1.55, absolute commands offset too
 	// (the spade carries an absolute H — moving only the opening M stretches it instead of
 	// translating it), then rounded to whole units, which is this library's own precision. Checked
-	// with getBBox() in Chromium: 62×70 and 58×73, the optical size of the heart (66×66) and the
-	// diamond (58×76). One decimal was measured too and is NOT usable — it collapses the club to
+	// with getBBox() in Chromium: heart 62×69, diamond 58×72, club 62×70, spade 58×73 — one set,
+	// drawn to one scale. One decimal was measured too and is NOT usable: it collapses the club to
 	// 43 units tall, because rounding a long chain of relative deltas drifts.
 	var SUITS = 'hdcs';
 	var PIP = [
-		'M0 34C-22 14-33 2-33 -11-33 -24-23-32-11-32-4 -32 0-28 0-23 0-28 4-32 11-32 23-32 33-24 33-11 33 2 22 14 0 34z',
-		'M0-38 29 0 0 38-29 0z',
+		'M31-18q0 18-21 42l-10 11-11-11Q-31-1-31-18q0-7 5-12 4-4 12-4 7 0 11 4 3 3 3 6 1-3 3-5 5-4 11-4 8 0 12 4 5 5 5 12',
+		'M0 36-29 0l29-36 29 36z',
 		'M4 21q0 4 2 14h-12q2-9 2-14l1-10q0-1 1 0-2 4-4 7-4 5-11 5-6 0-10-4-4-5-4-11 0-7 4-12 4-4 10-4 6 0 10 4 1-1 0-2-7-5-7-15 0-6 4-10 4-4 10-4 7 0 11 4 4 5 4 11 0 9-7 14-1 1-1 2 5-4 10-4 6 0 10 4 4 5 4 12 0 6-4 11-4 4-10 4-6 0-11-5-2-3-4-7 1-1 1 0z',
 		'M5 23q0 6 2 13H-6q2-8 2-13l0-9q1-1 2 0-2 4-5 6-3 3-10 3-5 0-8-3-4-4-4-11 0-8 15-28l14-18 14 18q15 19 15 28 0 7-4 11-3 3-8 3-6 0-10-4-4-4-4-6 1 0 1 0z'
 	];
