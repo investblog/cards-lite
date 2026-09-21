@@ -166,3 +166,32 @@ test('no signature, over both drawing calls (ADR 005)', () => {
 		}
 	}
 });
+
+// ── what the M5 review caught; these keep it caught ──────────────────────
+
+test('a spread name from outside cannot throw or draw a degenerate picture', () => {
+	// `own()` guarded `preset` and `draw` but not the line above it — the comment demanding it
+	// sat one line below the one that indexed LAYOUTS raw. `toString` threw a TypeError out of
+	// the layout, `__proto__` threw "not a function", and `constructor` produced a 119-byte
+	// <svg> with a negative viewBox. The contract is that the house never throws.
+	const fan = Cards.hand({ seed: 1 });
+	for (const bad of ['toString', '__proto__', 'constructor', 'valueOf', 'hasOwnProperty']) {
+		const svg = Cards.hand({ spread: bad, seed: 1 });
+		assert.equal(svg, fan, `spread ${bad} falls back to the default fan`);
+	}
+});
+
+test('card() reads the same facedown vocabulary as a hand of one', () => {
+	// it passed `o.facedown` straight through as a boolean flag, so every truthy value turned
+	// the card over — including `'none'`, the documented default, and a mask whose first slot
+	// is a 0. A reader who spelled the default out loud got the opposite of it.
+	const up = Cards.card({ card: 'AS', seed: 1 });
+	const down = Cards.card({ card: 'AS', seed: 1, facedown: true });
+	assert.notEqual(up, down, 'the two sides differ at all');
+	for (const v of ['none', false, undefined, '01101', '0', [1, 3]]) {
+		assert.equal(Cards.card({ card: 'AS', seed: 1, facedown: v }), up, `facedown ${JSON.stringify(v)} is face up`);
+	}
+	for (const v of [true, 'all', 'first', 'last', '1', [0]]) {
+		assert.equal(Cards.card({ card: 'AS', seed: 1, facedown: v }), down, `facedown ${JSON.stringify(v)} is face down`);
+	}
+});

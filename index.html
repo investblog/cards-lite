@@ -1,0 +1,164 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>cards-lite — playground</title>
+<meta name="description" content="Playing cards drawn by code: seeded spreads, a brand-aware four-colour deck, line or flat, as an SVG string.">
+<style>
+	:root { --bg: #111318; --panel: #1a1d24; --text: #e6e6e6; --muted: #9aa0aa; --line: #2b2f38; --accent: #00abf3; }
+	body.light { --bg: #f4f5f8; --panel: #ffffff; --text: #1d2026; --muted: #5d6470; --line: #dfe2e8; --accent: #0084bd; }
+	* { box-sizing: border-box; }
+	body { margin: 0; background: var(--bg); color: var(--text); font: 14px/1.4 system-ui, sans-serif; }
+	main { display: grid; grid-template-columns: 18rem 1fr; min-height: 100vh; }
+	aside { padding: 16px; background: var(--panel); border-right: 1px solid var(--line); display: flex; flex-direction: column; gap: 10px; }
+	h1 { font-size: 16px; margin: 0; }
+	label { display: grid; grid-template-columns: 5.5rem 1fr; align-items: center; gap: 8px; color: var(--muted); }
+	input[type=text], select { width: 100%; padding: 4px 6px; background: var(--bg); color: var(--text); border: 1px solid var(--line); border-radius: 4px; }
+	.row { display: flex; gap: 6px; align-items: center; }
+	button { padding: 4px 10px; background: var(--bg); color: var(--text); border: 1px solid var(--line); border-radius: 4px; cursor: pointer; }
+	button:hover { border-color: var(--accent); }
+	.brand input { width: 2.2rem; height: 1.6rem; padding: 0; border: 0; background: none; }
+	#stage { display: grid; place-items: center; padding: 24px; }
+	#stage > svg { width: min(72rem, 100%); height: auto; }
+	#stage.sheet { grid-template-columns: repeat(auto-fill, minmax(13rem, 1fr)); align-items: start; gap: 16px; }
+	#stage.sheet figure { margin: 0; text-align: center; color: var(--muted); font-size: 12px; cursor: pointer; }
+	#stage.sheet svg { width: 100%; height: auto; display: block; }
+	#stage.one svg { width: min(26rem, 100%); }
+	.meta { color: var(--muted); font-size: 12px; margin: 4px 0 0; }
+	footer { margin-top: auto; color: var(--muted); font-size: 12px; }
+	a { color: var(--accent); }
+	@media (max-width: 48rem) { main { grid-template-columns: 1fr; } aside { border-right: 0; border-bottom: 1px solid var(--line); } }
+</style>
+</head>
+<body>
+<main>
+	<aside id="panel">
+		<h1>cards-lite</h1>
+		<label>seed <input type="text" data-k="seed" value="1"></label>
+		<div class="row"><button id="prev">‹</button><button id="deal">deal</button><button id="next">›</button></div>
+		<label>show <select id="mode">
+			<option value="one">one hand</option>
+			<option value="sheet">contact sheet (24 seeds)</option>
+			<option value="spreads">every spread</option>
+			<option value="presets">every preset</option>
+			<option value="deck">the 52-card deck</option>
+			<option value="card">one card</option>
+		</select></label>
+		<label>theme <select data-k="theme"><option>dark</option><option>light</option></select></label>
+		<label class="brand">brand <span class="row"><input type="color" data-b="0" value="#00abf3"><input type="color" data-b="1" value="#d6af3c"><input type="color" data-b="2" value="#a91455"><button id="spintax" title="the spintax triad">↺</button></span></label>
+		<label>style <select data-k="style"><option>flat</option><option>line</option></select></label>
+		<label>spread <select data-k="spread"><option>auto</option><option>fan</option><option>row</option><option>cascade</option><option>stack</option><option>pile</option><option>pair</option></select></label>
+		<label>preset <select data-k="preset"><option value="">— none —</option><option>royal-flush</option><option>straight-flush</option><option>four-of-a-kind</option><option>full-house</option><option>flush</option><option>straight</option><option>three-of-a-kind</option><option>two-pair</option><option>pair</option><option>high-card</option><option>blackjack</option><option>double-down</option></select></label>
+		<label>cards <input type="text" data-k="cards" placeholder="AS KS QS JS 10S"></label>
+		<label>count <input type="range" data-k="count" min="1" max="13" step="1" value="5"></label>
+		<label>reveal <span class="row"><input type="range" data-k="reveal" min="0.1" max="1" step="0.02" value="0.4"><input type="checkbox" data-auto="reveal" checked title="seeded"></span></label>
+		<label>jitter <input type="range" data-k="jitter" min="0" max="2" step="0.1" value="1"></label>
+		<label>facedown <select data-k="facedown"><option>none</option><option>first</option><option>last</option><option>all</option></select></label>
+		<label>detail <select data-k="detail"><option value="1">1 plain back</option><option value="2" selected>2 standard</option></select></label>
+		<label>weight <input type="range" data-k="weight" min="0.4" max="2.5" step="0.1" value="1"></label>
+		<label>motion <span class="row"><input type="checkbox" data-k="motion"><input type="range" data-k="speed" min="0.25" max="4" step="0.25" value="1"></span></label>
+		<p class="meta" id="bytes"></p>
+		<footer>Made in <a href="https://301.st">301</a> · for <a href="https://spintax.net">spintax.net</a></footer>
+	</aside>
+	<section id="stage"></section>
+</main>
+<script src="cards.js"></script>
+<script>
+	(function () {
+		var TRIAD = ['#00abf3', '#d6af3c', '#a91455'];
+		var PRESETS = ['royal-flush', 'straight-flush', 'four-of-a-kind', 'full-house', 'flush',
+			'straight', 'three-of-a-kind', 'two-pair', 'pair', 'high-card', 'blackjack', 'double-down'];
+		var SPREADS = ['fan', 'row', 'cascade', 'stack', 'pile', 'pair'];
+		var opts = { seed: '1', theme: 'dark', brand: TRIAD.slice(), style: 'flat', spread: 'auto',
+			preset: '', cards: '', count: 5, reveal: 'auto', jitter: 1, facedown: 'none',
+			detail: 2, weight: 1, motion: false, speed: 1 };
+		var stage = document.getElementById('stage'), mode = document.getElementById('mode');
+		var seedInput = document.querySelector('[data-k=seed]'), bytes = document.getElementById('bytes');
+
+		function seedValue() { return /^\d+$/.test(opts.seed) ? Number(opts.seed) : opts.seed; }
+		// an explicit list wins over a preset, a preset over a count — the library's own order,
+		// so an empty field must be left out rather than passed as ''
+		function live(extra) {
+			var o = Object.assign({}, opts, { seed: seedValue() }, extra || {});
+			// a trailing space becomes an empty code, which hand() fills from the seed — so
+			// typing "AS KS " silently dealt a third, random card
+			if (typeof o.cards === 'string') o.cards = o.cards.trim();
+			if (!o.cards) delete o.cards;
+			if (!o.preset) delete o.preset;
+			if (!o.motion) { delete o.motion; delete o.speed; }
+			return o;
+		}
+		function tile(markup, caption, seed) {
+			return '<figure' + (seed == null ? '' : ' data-seed="' + seed + '"') + '>' +
+				markup + '<figcaption>' + caption + '</figcaption></figure>';
+		}
+
+		function render() {
+			document.body.classList.toggle('light', opts.theme === 'light');
+			var o = live(), html = '', i;
+			stage.className = '';
+			if (mode.value === 'sheet') {
+				stage.className = 'sheet';
+				var base = typeof o.seed === 'number' ? o.seed : 1;
+				for (i = 0; i < 24; i++) {
+					html += tile(Cards.hand(live({ seed: base + i })), 'seed ' + (base + i), base + i);
+				}
+			} else if (mode.value === 'spreads') {
+				stage.className = 'sheet';
+				for (i = 0; i < SPREADS.length; i++) {
+					html += tile(Cards.hand(live({ spread: SPREADS[i] })), SPREADS[i]);
+				}
+			} else if (mode.value === 'presets') {
+				stage.className = 'sheet';
+				for (i = 0; i < PRESETS.length; i++) {
+					// '' and not 'auto': each preset brings its own layout, and `auto` is not
+					// "unset" — it picks by count from the seed, so every tile came out in the
+					// same layout and the gallery showed twelve identical cascades
+					html += tile(Cards.hand(live({ preset: PRESETS[i], spread: '', cards: '' })), PRESETS[i]);
+				}
+			} else if (mode.value === 'deck') {
+				html = Cards.deck(o);
+			} else if (mode.value === 'card') {
+				stage.className = 'one';
+				html = Cards.card(o.cards ? Object.assign({}, o, { card: String(o.cards).split(/\s+/)[0] }) : o);
+			} else {
+				html = Cards.hand(o);
+			}
+			stage.innerHTML = html;
+			// what is on screen, not one hand of it: the sheet modes were reporting a single
+			// hand's bytes for 24 tiles — and rendering a 25th hand purely to be measured
+			var tiles = stage.querySelectorAll('figure').length;
+			bytes.textContent = html.length + ' bytes of SVG' + (tiles > 1 ? ' in ' + tiles + ' pictures' : '');
+		}
+		function setSeed(v) { opts.seed = String(v); seedInput.value = opts.seed; render(); }
+
+		document.getElementById('panel').addEventListener('input', function (e) {
+			var t = e.target, k = t.getAttribute('data-k'), b = t.getAttribute('data-b');
+			var auto = t.getAttribute('data-auto');
+			if (auto) opts[auto] = t.checked ? 'auto' : Number(document.querySelector('[data-k=' + auto + ']').value);
+			else if (b != null) opts.brand[+b] = t.value;
+			else if (k === 'motion') opts.motion = t.checked && 'deal';
+			else if (k === 'reveal') { opts.reveal = Number(t.value); document.querySelector('[data-auto=reveal]').checked = false; }
+			else if (k === 'count' || k === 'weight' || k === 'detail' || k === 'speed' || k === 'jitter') opts[k] = Number(t.value);
+			else if (k) opts[k] = t.value;
+			render();
+		});
+		mode.addEventListener('change', render);
+		document.getElementById('deal').onclick = function () { setSeed(Math.floor(Math.random() * 1e6)); };
+		document.getElementById('prev').onclick = function () { var v = seedValue(); setSeed(typeof v === 'number' ? Math.max(0, v - (mode.value === 'sheet' ? 24 : 1)) : 1); };
+		document.getElementById('next').onclick = function () { var v = seedValue(); setSeed(typeof v === 'number' ? v + (mode.value === 'sheet' ? 24 : 1) : 1); };
+		document.getElementById('spintax').onclick = function () {
+			opts.brand = TRIAD.slice();
+			document.querySelectorAll('[data-b]').forEach(function (el, i) { el.value = TRIAD[i]; });
+			render();
+		};
+		stage.addEventListener('click', function (e) {
+			var f = e.target.closest('figure');
+			if (f && f.getAttribute('data-seed')) { mode.value = 'one'; setSeed(f.getAttribute('data-seed')); }
+		});
+		render();
+	})();
+</script>
+</body>
+</html>

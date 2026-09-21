@@ -22,3 +22,4 @@ Format: context → decision → consequences.
 - [010 — poker and blackjack as named presets: data, never a game](010-presets-are-data.md)
 - [011 — `style` governs pips, court and back — not the face](011-style-does-not-unpaint-the-face.md)
 - [012 — the court emblem: seeded geometry, rank by ring count](012-court-emblem.md)
+- [013 — the deal's whole start state is derived from the pad](013-the-deal-fits-the-pad.md)

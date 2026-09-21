@@ -546,7 +546,9 @@
 	function card(opts) {
 		var o = opts || {}, c = context(o), rs = pick(o, c.S, '');
 		c.ids(RANKS[rs[0]] + SUITS.charAt(rs[1]));
-		var body = face(rs[0], rs[1], c, o.facedown);
+		// one card is a hand of one, so it reads the same facedown vocabulary: passing the
+		// documented default `'none'` must not turn the card over, and a truthy string did
+		var body = face(rs[0], rs[1], c, downAt(o, 0, 1));
 		return wrap(o, c, [-HW, -HH, W, H], body);
 	}
 
@@ -825,20 +827,42 @@
 		// block's timing win for both
 		var tk = tokens(S, 'motion' + (c.o.salt || '') + c.key), kf = tk(), out = [], css = '', i;
 		var dur = 0.45 / speed, step = 0.11 / speed;
-		// the cards come from where the deck would be: up and to the left, inside the picture
-		// The travel must fit inside the pad, or the leading card of every spread starts outside
-		// the viewBox and is clipped on its way in — at 0.70 opacity, which reads as a glitch
-		// rather than as an entry. Tied to `pad` so the invariant holds by construction and not
-		// by a number that happens to be small.
+		// the cards come from where the deck would be: up and to the left, inside the picture.
+		// The whole start state must fit inside the pad, or the leading card of every spread
+		// begins outside the viewBox and is clipped on its way in — at 0.70 opacity, which reads
+		// as a glitch rather than as an entry.
+		//
+		// The slide was tied to `pad` at M4 and the note here then claimed the invariant held by
+		// construction. It did not: the TURN was tied to nothing. At 12-28 degrees it put card 0
+		// of every spread 111-128 units outside the box at t=0, measured in three engines, because
+		// CSS rotates an SVG element about the VIEW BOX centre by default — so the swing grew
+		// with the card's distance from the middle of the picture, and the widest hands were
+		// worst. `transform-box:fill-box` below moves the pivot to the card's own centre, which
+		// makes the reach a function of the card alone, and the angle is then derived from the
+		// room left over rather than chosen. The divisor is the card's HALF-DIAGONAL, not H/2:
+		// the card is already turned by its placement angle, and turning it further from there
+		// grows the box fastest when the diagonal is what swings — 430 units here against 350
+		// lying flat. Taking the flat figure left `stack` 6 units out at its worst seed, which is
+		// how this number was found.
+		//
+		// And the start state spends only 85% of the pad, not all of it: the viewBox is rounded
+		// to whole units, so the slack a picture really has is 29 where the pad says 30. Spending
+		// the pad exactly left 3 units hanging out of `stack`. A quarter goes to the slide, three
+		// fifths to the turn, and the remainder is the rounding's.
 		var pad = (c.o.pad == null ? 0.06 : c.o.pad) * W;
-		var fx = -0.8 * pad, fy = -0.8 * pad, spin = -12 - 16 * S('deal:spin')();
+		var fx = -0.25 * pad, fy = -0.25 * pad;
+		var spin = -Math.asin(0.6 * pad / (Math.sqrt(W * W + H * H) / 2)) / DEG *
+			(0.6 + 0.4 * S('deal:spin')());
 		css = '@keyframes ' + kf + '{from{transform:translate(' + n(fx) + 'px,' + n(fy) +
 			'px) rotate(' + n(spin, 1) + 'deg);opacity:0}}';
 		for (i = 0; i < count; i++) {
 			var cls = tk();
 			out.push(cls);
-			css += '.' + cls + '{animation:' + kf + ' ' + n(dur, 2) + 's ' + n(i * step, 2) +
-				's backwards cubic-bezier(.2,.7,.3,1)}';
+			// transform-box, so the turn pivots on the card and not on the middle of the picture.
+			// It is a property, not a transform attribute, so the rule that the animated element
+			// carries no `transform` of its own still holds — and the test that pins it still passes.
+			css += '.' + cls + '{transform-box:fill-box;animation:' + kf + ' ' + n(dur, 2) + 's ' +
+				n(i * step, 2) + 's backwards cubic-bezier(.2,.7,.3,1)}';
 		}
 		css += '@media(prefers-reduced-motion:reduce){' +
 			out.map(function (k) { return '.' + k; }).join(',') + '{animation:none}}';
@@ -852,7 +876,7 @@
 		if (typeof o.cards === 'string') list = o.cards.split(/[\s,]+/);
 		else if (o.cards) list = o.cards.slice();
 		else if (o.preset) list = hands(o.preset, c.S) || [];
-		var kind = o.spread && o.spread !== 'auto' && LAYOUTS[o.spread] ? o.spread : null;
+		var kind = o.spread && o.spread !== 'auto' && own(LAYOUTS, o.spread) ? o.spread : null;
 		var want = list.length || (o.count == null ? 5 : o.count);
 		// own() everywhere a name from outside indexes an object: `preset: 'toString'` reached
 		// Object.prototype and threw, which breaks the promise that the house never throws

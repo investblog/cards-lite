@@ -100,6 +100,43 @@ test('the deal travels no further than the pad, so nothing is clipped on entry',
 	}
 });
 
+test('and the TURN fits too: every corner of every card starts inside the viewBox', () => {
+	// The test above checks the slide alone, and the note in cards.js claimed on the strength of
+	// it that the invariant held by construction. It did not: the turn was tied to nothing, and
+	// at 12–28° it put card 0 of every spread 111–128 units outside the box at t = 0 — measured
+	// in a browser, because CSS turns an SVG element about the VIEW BOX centre unless told
+	// otherwise, so the swing grew with the card's distance from the middle of the picture.
+	// This is that measurement done in arithmetic: the start state composed the way the browser
+	// composes it — turn about the card's own centre, then the slide, then the placement.
+	for (const spread of ['fan', 'row', 'cascade', 'stack', 'pile', 'pair']) {
+		for (let seed = 1; seed <= 40; seed++) {
+			const svg = Cards.hand({ seed, count: 5, spread, motion: 'deal' });
+			const vb = svg.match(/viewBox="(-?[\d.]+) (-?[\d.]+) ([\d.]+) ([\d.]+)"/u).slice(1).map(Number);
+			const kf = svg.match(/from\{transform:translate\((-?[\d.]+)px,(-?[\d.]+)px\) rotate\((-?[\d.]+)deg\)/u);
+			const [fx, fy] = [Number(kf[1]), Number(kf[2])];
+			const spin = Number(kf[3]) * Math.PI / 180;
+			// only the body: <defs> carries groups of its own, and reading those instead of the
+			// cards is exactly how the browser check managed to pass while the deal was clipped
+			const body = svg.slice(svg.indexOf('</defs>'));
+			const groups = [...body.matchAll(/<g transform="translate\((-?[\d.]+) (-?[\d.]+)\)(?: rotate\((-?[\d.]+)\))?"/gu)];
+			assert.equal(groups.length, (svg.match(/ class="[a-z0-9]+"/gu) || []).length,
+				`${spread} seed ${seed}: one placement per animated card`);
+			for (const g of groups) {
+				const [cx, cy] = [Number(g[1]), Number(g[2])];
+				const t = (g[3] ? Number(g[3]) : 0) * Math.PI / 180;
+				for (const [px, py] of [[-250, -350], [250, -350], [-250, 350], [250, 350]]) {
+					const rx = px * Math.cos(spin) - py * Math.sin(spin) + fx;
+					const ry = px * Math.sin(spin) + py * Math.cos(spin) + fy;
+					const x = cx + rx * Math.cos(t) - ry * Math.sin(t);
+					const y = cy + rx * Math.sin(t) + ry * Math.cos(t);
+					assert.ok(x >= vb[0] && x <= vb[0] + vb[2] && y >= vb[1] && y <= vb[1] + vb[3],
+						`${spread} seed ${seed}: a corner starts at (${Math.round(x)}, ${Math.round(y)}), outside ${vb.join(' ')}`);
+				}
+			}
+		}
+	}
+});
+
 test('two different hands under one seed share no animation name', () => {
 	// the motion stream was keyed by salt alone, so the names collided and — the inline style
 	// being document-global — the later block's timing won for both hands

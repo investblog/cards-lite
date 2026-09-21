@@ -21,7 +21,7 @@ declare namespace Cards {
 		theme?: 'dark' | 'light';
 		/** Governs pips, court and back — never the face, which is always paper (ADR 011). */
 		style?: 'line' | 'flat';
-		/** 1 standard · 1 drops the back's lattice, which `deck()` defaults to. */
+		/** 2 standard · 1 drops the back's lattice, which `deck()` defaults to. */
 		detail?: 1 | 2;
 		weight?: number;
 		heart?: Pin;
@@ -39,12 +39,12 @@ declare namespace Cards {
 		lattice?: 'auto' | 'trigon' | 'hex' | 'octagon' | 'none';
 		/** Width; the height follows the viewBox. */
 		size?: number;
-		fit?: 'tight' | 'square';
-		pad?: number;
 		/** Decimals for coordinates; angles always carry two. */
 		precision?: number;
 		/** Extra entropy for ids — the same picture twice on one page. */
 		salt?: string;
+		/** false leaves a court's centre to a large pip instead of the rosette. Honoured by all three calls. */
+		emblem?: boolean;
 		/** role="img" with this label; without it the picture is aria-hidden. */
 		title?: string;
 	}
@@ -55,8 +55,7 @@ declare namespace Cards {
 		rank?: Rank | number | 'auto';
 		suit?: Suit | 'auto';
 		facedown?: boolean;
-		/** false leaves a court's centre to a large pip instead of the rosette. */
-		emblem?: boolean;
+
 	}
 
 	interface HandOptions extends Common {
@@ -78,9 +77,13 @@ declare namespace Cards {
 		motion?: 'deal' | boolean;
 		/** Period divisor; 0 turns motion off and returns the static bytes. */
 		speed?: number;
+		/** Framing. Read by hand() alone — card() and deck() draw into a fixed box. */
+		fit?: 'tight' | 'square';
+		pad?: number;
 	}
 
 	interface DeckOptions extends Common {
+		/** The sheet has no slots to address: the per-slot forms of a hand do not apply. */
 		facedown?: boolean | 'all';
 	}
 
@@ -112,7 +115,7 @@ declare const Cards: {
 	card(opts?: Cards.CardOptions): string;
 	/** Pure: a spread — the heart of the library. */
 	hand(opts?: Cards.HandOptions): string;
-	/** Pure: all 52 faces as one sheet. Its own output class, ~47 KB raw. */
+	/** Pure: all 52 faces as one sheet. Its own output class, 48-51 KB raw. */
 	deck(opts?: Cards.DeckOptions): string;
 	palette(brand?: string | string[], opts?: { theme?: 'dark' | 'light' }): Cards.Palette;
 	/** Browser only. Returns null when the selector matches nothing. */

@@ -10,9 +10,10 @@ project: cards-lite
 Docs for developers and agents. `index.html` is the verification surface, `test/` the gate.
 Contract-first: change the doc here **before** the code, then code.
 
-**Status (2026-09-21): M4 — the named hands, the deal, `init()` and the types are in; the library
-is feature-complete for v0.1.** What remains is M5 (the browser verify page, CI and release
-workflows, the README, an external review) and M6 (an integration, then the release). This line is kept
+**Status (2026-09-21): M5 — the browser gate is ALL GREEN in Chromium, Firefox and WebKit, the
+playground, the CI and release workflows and the public docs are in. Nothing is published.** What
+remains is M6: a first integration in a static site, then the 0.1.0 release — the repository, the
+token and the publish each on the maintainer's go (`RELEASING.md`). This line is kept
 true at every milestone; a spec that still says "SPEC" after shipping (hexagons) is the thing it
 guards against, and one that claims a release it has not made is the same fault pointing the
 other way.
@@ -285,7 +286,11 @@ exempt below its top card for the same reason.
 | Spread | Seeded parameters | Typical aspect, 5 cards |
 |---|---|---|
 | `fan` | `arc` 1.6–2.6 × H · `reveal` 0.34–0.62 (the step is derived: `Δ = degrees(reveal·W/Rp)`, landing at 5.3–15.9°) · `lean` ±10° | 1.4 : 1 |
-| `row` | `reveal` 0.32–0.62 · `rise` 0–0.05 H, sampled from a **fixed** parabola · `tilt` ±0–3° alternating | 2.3 : 1 |
+
+The aspects are **medians over 300 seeds at five cards**, not ceilings: `fan` runs 1.13–1.75,
+`row` 1.52–2.34, `cascade` 0.78–1.21, `stack` 0.73–0.83, `pile` 0.74–1.10, `pair` 0.78–0.91.
+A page reserving a box takes the band, not the median.
+| `row` | `reveal` 0.32–0.62 · `rise` 0–0.05 H, sampled from a **fixed** parabola · `tilt` ±0–3° alternating | 1.9 : 1 |
 | `cascade` | `dx` 0.28–0.42 W (**floor is `IDX`** — the layout where the index binds) · `dy` 0.14–0.26 H · `tilt` 0–2.5° accumulating | 0.94 : 1 |
 | `stack` | `lift` 2–5 units/card · `skew` ±0.35°/card · `dir` 100–140° · `mess` 0–3 cards breaking rank | 0.75 : 1 |
 | `pile` | `scatter` 0.10–0.35 W in a disc · `spin` ±18–40° · a seeded z permutation | 0.93 : 1 |
@@ -305,8 +310,8 @@ long stack off to a **deck body**, an oblique extrusion of ~10 shapes rather tha
 — is in the backlog, not in v0.1.
 
 `spread: 'auto'` chooses by count and is **opt-in, not the default** (house precedent: `variant`,
-`view`). The reason is concrete: `auto` swings the aspect from 0.94 : 1 to 2.29 : 1 under a seed
-change, which breaks a page's reserved box. The aspect table above is published so a page author
+`view`). The reason is concrete: `auto` swings the aspect from 0.79 : 1 to 2.29 : 1 under a seed
+change at five cards, and 0.64 : 1 to 2.28 : 1 across counts — which breaks a page's reserved box. The aspect table above is published so a page author
 can reserve one; name the spread if you need a fixed box.
 
 ### Framing
@@ -318,10 +323,13 @@ A rectangle's support function is exact and costs four multiplies per card:
 ```
 ex = w·|cos a| + h·|sin a|        ey = w·|sin a| + h·|cos a|
 box ∪= (cx ± ex, cy ± ey)
-pad = (opts.pad ?? 0.06)·W + (style === 'line' ? lw/2 · (glow ? 3.5 : 1) : 0)
+pad = (opts.pad ?? 0.06)·W
 ```
 
 The corner radius only shrinks the shape, so the box is tight to within ~11 units at a 45° card.
+The pad is one term: roulette's line style widens its box for the stroke and its glow, and this
+one does not — the viewBox is byte-identical between `flat` and `line` for every spread, and
+there is no `glow` option here. The formula carried both terms from M0 to M5 regardless.
 **The box is computed from the emitted, already-rounded numbers**, so "every corner is inside the
 viewBox" is exactly true rather than true-to-a-rounding.
 
@@ -368,8 +376,12 @@ Off by default. `motion: 'deal' | true`, `speed` divides the periods, `0` turns 
 - **`from` with no `to`.** The animation ends at identity, so `animation: none` under reduced
   motion leaves every card in its finished place. A `to`-based deal would strand a reduced-motion
   reader looking at the start state.
-- **Travel starts inside the frame** — the start offset is the deck position, which is inside the
-  picture, because the framing pass never sees the start state.
+- **The whole start state starts inside the frame** — both the slide and the turn, because the
+  framing pass never sees the start state and cannot make room for it. Both are derived from
+  `pad`: the slide takes a quarter of it, the turn the angle that fits three fifths of it against
+  the card's half-diagonal, and the rest is the viewBox's rounding. Tying only the slide to `pad`
+  and leaving the turn free is what put card 0 of every spread 111–128 units outside the box
+  through M4 (ADR 013).
 - **An animated element never carries a `transform` attribute** — CSS `transform` would replace
   it. The placement transform sits on the outer `<g>`, the animation class on an inner one.
 - Each card gets its own seeded class carrying its own `animation-delay`; no type, universal or
@@ -418,10 +430,7 @@ Shared by `card()`, `hand()` and `deck()`:
 | `index` | `'both'` | `'both'` \| `'tl'` \| `'none'` |
 | `pips` | `true` | `false` = index only |
 | `lattice` | `'auto'` | `'trigon'` \| `'hex'` \| `'octagon'` \| `'none'` |
-| `motion` | `false` | `'deal'` \| `true` |
-| `speed` | `1` | period divisor; `0` = static |
 | `size` | — | width; the height follows the viewBox |
-| `fit`, `pad` | `'tight'`, `0.06` | framing |
 | `precision` | `0` | decimals for coordinates (angles are always 2) |
 | `salt` | `''` | extra entropy for ids — two pictures of **the same card** with one seed on one page |
 | `title` | — | `role="img"` + escaped `aria-label`; otherwise `aria-hidden="true"` |
@@ -431,7 +440,16 @@ no `angle`: a card rotated inside a fixed viewBox clips at the corners, and a sp
 card is meant to be turned.
 `hand()` adds `cards`, `preset`, `count` (precedence: `cards` > `preset` > `count`), `spread`,
 `reveal`, `step`, `arc`, `lean`, `jitter`, `facedown` (`'all'`, `'first'`, `'last'`, a mask
-`'01101'`, or indices), `gap`. `deck()` adds `top`, `cut`, `stripes`, `dir`.
+`'01101'`, or indices), **`motion` (`'deal'` \| `true`) with `speed`**, and the framing pair
+**`fit` and `pad`** (`'tight'`, `0.06`). All four groups are the hand's alone and are read by
+nothing else: the deal has nothing to deal a single card against, and `card()` and `deck()` never
+reach `frame()` — they hand a fixed box to `wrap()`, so `pad` and `fit` are silently inert there.
+`card()` also takes `facedown` as a hand of one: `'none'` and a mask whose first slot is `0` leave
+it face up.
+`deck()` adds `facedown` in its `true` \| `'all'` form only — the per-slot forms have no slots to
+address on a reference sheet. Its grid is fixed at 13 × 4: the `top` / `cut` / `stripes` / `dir`
+knobs this line promised until M5 belonged to the deck-**body** design that became the `stack`
+spread (backlog, above), and were never implemented.
 
 ## Determinism
 
@@ -458,7 +476,9 @@ card is meant to be turned.
   (`a_i = lean + i·Δ`) rather than centred — `frame()` recentres the picture, so anchoring costs
   nothing visually — and pinned on *relative* placements, which is the honest form.
 - No `Math.random`, no `Date`. The default seed is fixed: a build must reproduce.
-- **Contract:** same (seed, options) → byte-identical string within a minor version (ADR 010).
+- **Contract:** same (seed, options) → byte-identical string within a minor version
+  (roulette-lite's ADR 010, adopted here by ADR 001 — *this* repo's ADR 010 is the different
+  rule that presets are data).
   **`brand` never touches geometry, `seed` never touches colour, and `brand` never changes which
   card is drawn.**
 
@@ -490,8 +510,13 @@ contribute **zero** seed-invariant `d` values.
   (ADR 009). From here that is room for fixes, not for features. The M0 forecast was 26% low, and
   the parts that missed were the estimated ones: everything measured before it was written came in
   on the number.
-- Output: ≤ 6 KB raw for a five-card hand, ≤ 10 KB for a thirteen-card cascade, ~47 KB for
-  `deck()`'s sheet (measured M3).
+- Output, **measured over 60 seeds at M5** and stated as bands rather than ceilings: 4.4–8.0 KB
+  raw for a five-card hand (median 5.9), 11.2–17.5 KB for a thirteen-card cascade (median 14.1),
+  48.4–50.4 KB for `deck()`'s sheet. The M3 ceilings this line used to carry — ≤ 6 KB, ≤ 10 KB,
+  ~47 KB — were written from single renders: the five-card one was over in 22 seeds of 60 and the
+  thirteen-card one in **60 of 60**. What moves the number is not the spread but the mix of cards
+  the seed deals: a court card is ~2.1 KB against ~1.2 KB for a spot card, so a hand of courts is
+  nearly twice a hand of spots. A page reserving a byte budget should take the top of the band.
 
 ## Promotion
 

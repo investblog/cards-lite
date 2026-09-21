@@ -23,6 +23,9 @@ __pycache__/
 .pytest_cache/
 
 # build / generated artifacts
+# built from cards.js by `npm run build`; package.json `files` ships it, git never does
+cards.min.js
+*.tgz
 dist/
 build/
 .astro/
@@ -35,6 +38,11 @@ build/
 
 # heavy consumed inputs — context/ is committed, but bulky media is not
 context/attachments/
+
+# screenshots and the browser agent's scratch — two of them were swept into a
+# commit in roulette-lite on 2026-09-21 by a careless `git add -A`
+*.png
+.playwright-mcp/
 
 # OS junk
 .DS_Store

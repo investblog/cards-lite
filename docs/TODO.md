@@ -27,8 +27,19 @@ the way.
 - [x] M4 — the twelve named hands, the CSS deal, `init()`, the types, and the **budget frozen at
   9088 B** (measured 8747, 2026-09-21). 49 tests, including 2000 hands checked by an evaluator the
   test file carries itself — the library has none and must not grow one (ADR 010).
-- [ ] M5 — `verify.html` in three engines, CI and release workflows, README/CHANGELOG/RELEASING,
-  external Codex review.
+- [x] M5 — the browser gate, the playground, CI and release workflows, README/CHANGELOG/RELEASING
+  (2026-09-21). `test/verify.html`: **14 checks ALL GREEN in Chromium 153, Firefox and WebKit**,
+  run from a local server, cache-busted. 57 Node tests, 8950 B.
+  Reviewed in two independent passes — the Codex gate was out of quota until 2026-09-25, so the
+  house `code-review` protocol ran instead. Twenty findings, all verified by measurement before
+  acting: **three were defects in the library** (a spread name from outside could throw or draw a
+  degenerate picture; `card({facedown:'none'})` drew the back; and the deal started 111–128 units
+  outside the viewBox — ADR 013), two were false promises in this spec (five options that were
+  never implemented; `motion`/`speed`/`fit`/`pad` claimed as shared), and two were checks that
+  could not fail. The rest were documentation drift, corrected against measurement.
+- [ ] M5.1 — the two browser checks the review left standing: the contrast check is WCAG
+  arithmetic that needs no browser and samples only the default brand, and the reduced-motion
+  path is reasoned from the code rather than run (no way to emulate the query from this tool).
 - [ ] `split` — two hands side by side. Every layout places one group, so it waits for a two-group
   layout rather than being faked with four cards in a row (spec: Hands).
 - [ ] M6 — first integration in a static site, then release 0.1.0.
@@ -56,3 +67,9 @@ Kept out on purpose — the family rule is that nothing speculative is carried, 
 - **The deck body** — handing a long `stack` off to an oblique extrusion of ~10 shapes instead of
   52 full cards, the way roulette draws its rim. Today an explicit list of twenty named cards is
   twenty full cards and weighs like it; the spec says so rather than pretending otherwise.
+  Its four knobs — `top`, `cut`, `stripes`, `dir` — were listed in the spec's option table from
+  M0 until M5, where they were struck: they described this body, not the 13 × 4 sheet `deck()`
+  became when the user chose it, and no line of them was ever written. `hand()`'s `gap` went the
+  same way — `step` and `reveal` already say what it would have said. A doc that promises an
+  option the code does not read is the same fault as a status line claiming a release, pointed
+  at the API instead (spec: Status).

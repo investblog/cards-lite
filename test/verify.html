@@ -1,0 +1,335 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>cards-lite — verify</title>
+<style>
+	:root { --pin-a: rgb(255, 0, 0); --pin-b: rgb(0, 128, 0); }
+	body { font: 14px/1.5 system-ui, sans-serif; margin: 24px; background: #fff; color: #111; }
+	li.pass::marker { content: '✔ '; color: #080; }
+	li.fail::marker { content: '✘ '; color: #c00; }
+	#stage { display: flex; gap: 8px; flex-wrap: wrap; }
+	#stage > div { width: 320px; }
+	#verdict { font-weight: bold; }
+</style>
+</head>
+<body>
+<h1>cards-lite — verify</h1>
+<p>What needs a browser: parsing, computed colours, hit testing, CSS motion, <code>init()</code>.
+The byte-level contracts are <code>npm test</code>. The library is loaded cache-busted — a stale
+cached script once produced a convincing false FAIL in hexagons, and would as happily produce a
+false PASS.</p>
+<p id="verdict">running…</p>
+<ol id="out"></ol>
+<div id="stage"><div id="a"></div><div id="b"></div><div id="c"></div><div id="d"></div></div>
+<script>
+	(function () {
+		var out = document.getElementById('out'), failed = 0, total = 0;
+		function check(name, fn) {
+			total++;
+			var li = document.createElement('li'), ok = false, note = '';
+			try { ok = fn() === true; } catch (e) { note = ' — ' + e.message; }
+			if (!ok) failed++;
+			li.className = ok ? 'pass' : 'fail';
+			li.textContent = name + note;
+			out.appendChild(li);
+		}
+		function wait(ms) { return new Promise(function (r) { setTimeout(r, ms); }); }
+		// one pixel of a rendered card, through an <img> and a canvas — a data URL does not taint it
+		function sample(markup, x, y) {
+			return new Promise(function (res, rej) {
+				var img = new Image();
+				img.onload = function () {
+					var cv = document.createElement('canvas');
+					cv.width = img.width; cv.height = img.height;
+					var g = cv.getContext('2d');
+					g.drawImage(img, 0, 0);
+					try { res(g.getImageData(x, y, 1, 1).data); } catch (e) { rej(e); }
+				};
+				img.onerror = function () { rej(new Error('the card did not rasterise')); };
+				img.src = 'data:image/svg+xml;charset=utf-8,' + encodeURIComponent(markup);
+			});
+		}
+
+		var s = document.createElement('script');
+		s.src = '../cards.js?ts=' + Date.now();
+		// a throw between checks — or one from the `await` outside them — would otherwise be an
+		// unhandled rejection: the page would stop at "running…", neither PASS nor FAIL, which
+		// a CI run and a tired reader both take for a pass
+		s.onload = function () {
+			run().catch(function (e) {
+				document.getElementById('verdict').textContent = 'FAIL — the suite stopped: ' + e.message;
+				document.title = 'FAIL';
+			});
+		};
+		s.onerror = function () {
+			document.getElementById('verdict').textContent = 'FAIL — library did not load';
+			document.title = 'FAIL';
+		};
+		document.head.appendChild(s);
+
+		async function run() {
+			var C = window.Cards;
+			var a = document.getElementById('a'), b = document.getElementById('b');
+			var c = document.getElementById('c'), d = document.getElementById('d');
+
+			check('window.Cards defines card, hand, deck, palette, init', function () {
+				return typeof C.card === 'function' && typeof C.hand === 'function' &&
+					typeof C.deck === 'function' && typeof C.palette === 'function' &&
+					typeof C.init === 'function';
+			});
+
+			check('every spread × style × theme parses as SVG, for 20 seeds', function () {
+				var parser = new DOMParser(), kinds = ['fan', 'row', 'cascade', 'stack', 'pile', 'pair'];
+				for (var seed = 1; seed <= 20; seed++) {
+					for (var k = 0; k < kinds.length; k++) {
+						for (var st of ['flat', 'line']) for (var th of ['dark', 'light']) {
+							var svg = C.hand({ seed: seed, spread: kinds[k], style: st, theme: th, count: 4 });
+							if (parser.parseFromString(svg, 'image/svg+xml').getElementsByTagName('parsererror').length) {
+								throw new Error(kinds[k] + ' ' + st + ' ' + th + ' seed ' + seed);
+							}
+						}
+					}
+				}
+				return true;
+			});
+
+			check('every card of the deck sheet parses, and the twelve courts carry their panels', function () {
+				var parser = new DOMParser(), doc = parser.parseFromString(C.deck({ seed: 4 }), 'image/svg+xml');
+				if (doc.getElementsByTagName('parsererror').length) throw new Error('parse');
+				if (doc.querySelectorAll('svg > g').length !== 52) throw new Error('not 52 cards');
+				// J, Q, K across four suits — counted, so the sentence is checked and not merely said
+				var courts = doc.querySelectorAll('g > rect[width="260"]').length;
+				if (courts !== 12) throw new Error('court panels: ' + courts);
+				return true;
+			});
+
+			// The index band is what identifies a card in a spread, so the browser is asked the
+			// question directly rather than by arithmetic: who is painted at this point?
+			a.innerHTML = C.hand({ seed: 6, spread: 'row', count: 5, size: 320 });
+			await wait(30);
+			// The first card whose index is buried, -1 if none, -2 if the probe hit nothing at all.
+			// The three answers must stay distinct: `elementFromPoint` returns null off-screen, so
+			// a page scrolled past the stage would otherwise report a buried index (a false FAIL
+			// below) and, worse, satisfy the negative control that asks for one (a false PASS).
+			function buried(host) {
+				host.scrollIntoView();
+				var svg = host.querySelector('svg'), groups = svg.querySelectorAll('svg > g');
+				for (var i = 0; i < groups.length; i++) {
+					// getScreenCTM, not getCTM: under the root <svg> the latter already carries the
+					// viewBox transform, so scaling its result by hand lands the probe somewhere else
+					// entirely — and the first version of this check failed the library for it.
+					// x = -153 is the index glyph's right edge, not its centre: the contract is that
+					// the whole IDX strip stays clear, and probing the centre only fired once the
+					// clearance had been cut by 70%, which is a regression this was meant to catch.
+					var pt = svg.createSVGPoint();
+					pt.x = -153; pt.y = -258;
+					var p = pt.matrixTransform(groups[i].getScreenCTM());
+					var hit = document.elementFromPoint(p.x, p.y);
+					if (!hit) return -2;
+					if (!groups[i].contains(hit)) return i;
+				}
+				return -1;
+			}
+
+			check('the rank index of every card in a row is on top, by hit testing', function () {
+				var groups = a.querySelectorAll('svg > g');
+				if (groups.length !== 5) throw new Error('drew ' + groups.length + ' cards');
+				var b = buried(a);
+				if (b === -2) throw new Error('the probe hit nothing — is the stage on screen?');
+				if (b >= 0) throw new Error('card ' + b + ' index covered');
+				return true;
+			});
+
+			check('and the probe can see a violation: an explicit reveal under IDX buries one', function () {
+				// a seeded reveal is clamped to IDX/W, so only an explicit number can produce a
+				// hand this must fail on. Without it the check above proves the probe fires on a
+				// good hand but never that it would fire on a bad one — and it had already passed
+				// a library it could not see, twice in one evening
+				a.innerHTML = C.hand({ seed: 6, spread: 'row', count: 5, size: 320, reveal: 0.05 });
+				var b = buried(a);
+				a.innerHTML = C.hand({ seed: 6, spread: 'row', count: 5, size: 320 });
+				if (b === -2) throw new Error('the probe hit nothing at all');
+				if (b < 0) throw new Error('nothing was covered at reveal 0.05');
+				return true;
+			});
+
+			b.innerHTML = C.card({ card: '7h', seed: 3, stock: 'var(--pin-a, #000)', ink: 'var(--pin-b, #000)', size: 200 });
+			check('a pinned var() colour resolves to the page\'s value', function () {
+				var rects = b.querySelectorAll('rect');
+				return getComputedStyle(rects[0]).fill === 'rgb(255, 0, 0)' &&
+					getComputedStyle(rects[1]).stroke === 'rgb(0, 128, 0)';
+			});
+			document.documentElement.style.setProperty('--pin-a', 'rgb(0, 0, 255)');
+			check('changing the page variable recolours it without a re-render', function () {
+				return getComputedStyle(b.querySelector('rect')).fill === 'rgb(0, 0, 255)';
+			});
+
+			// The two halves of the card get their colour by opposite routes, so both are asked.
+			// A pip is painted on the shared <path> in <defs> and merely placed by <use x y>; the
+			// rank glyph is one colourless skeleton whose <use> carries the stroke, so its instance
+			// can only be coloured by inheriting it — which is what breaks the day the skeleton
+			// gains a stroke of its own.
+			b.innerHTML = C.card({ card: '9c', seed: 3, club: 'var(--pin-b, #000)', size: 200 });
+			check('a var() pin reaches the pips on the def and the rank glyph by inheritance', function () {
+				var svg = b.querySelector('svg');
+				var pip = svg.querySelector('defs path[fill^="var"]');
+				var use = svg.querySelector('use[stroke]');
+				var glyph = svg.querySelector(use.getAttribute('href'));
+				if (getComputedStyle(pip).fill !== 'rgb(0, 128, 0)') {
+					throw new Error('pip ' + getComputedStyle(pip).fill);
+				}
+				if (getComputedStyle(use).stroke !== 'rgb(0, 128, 0)') {
+					throw new Error('glyph ' + getComputedStyle(use).stroke);
+				}
+				if (glyph.hasAttribute('stroke')) throw new Error('the skeleton overrides its own <use>');
+				return true;
+			});
+
+			// and that the paint reaches the screen — the one check here no correct-looking
+			// markup can fake: rasterise a plainly pinned card and read the centre pip's pixel
+			var px = await sample(C.card({ card: '9c', seed: 3, club: '#00a000', stock: '#fff', size: 200 }), 100, 140);
+			check('the pip a <use> places is painted where it places it, read off the pixels', function () {
+				var want = [0, 160, 0];
+				for (var i = 0; i < 3; i++) {
+					if (Math.abs(px[i] - want[i]) > 8) throw new Error('rgb(' + [px[0], px[1], px[2]] + ')');
+				}
+				return px[3] === 255;
+			});
+
+			check('two hands with one seed and a salt share no id, class or keyframe', function () {
+				var one = C.hand({ seed: 9, count: 4, motion: 'deal' });
+				var two = C.hand({ seed: 9, count: 4, motion: 'deal', salt: 'second' });
+				var names = function (s) {
+					var set = {}, re = /(?:id|class)="([a-z0-9]+)"|@keyframes ([a-z0-9]+)/g, m;
+					while ((m = re.exec(s))) set[m[1] || m[2]] = 1;
+					return set;
+				};
+				var x = names(one), y = names(two);
+				// two empty sets share nothing either: markup with no ids at all would pass this
+				if (Object.keys(x).length < 10) throw new Error('only ' + Object.keys(x).length + ' names found');
+				for (var k in x) if (y[k]) throw new Error('shared: ' + k);
+				return true;
+			});
+
+			// the ink must read against the paper it is printed on. This one needs no browser —
+			// it is WCAG arithmetic over palette() and would sit just as well in `npm test`; it
+			// stays here because the page is where anyone looks when a brand reads badly.
+			check('the ink and every suit clear their contrast floor against the stock (default brand)', function () {
+				var p = C.palette();
+				var lin = function (u) { u /= 255; return u <= 0.04045 ? u / 12.92 : Math.pow((u + 0.055) / 1.055, 2.4); };
+				var lum = function (hex) {
+					var v = hex.replace('#', '').match(/../g).map(function (h) { return lin(parseInt(h, 16)); });
+					return 0.2126 * v[0] + 0.7152 * v[1] + 0.0722 * v[2];
+				};
+				var ratio = function (m, n) {
+					var L = lum(m), M = lum(n);
+					return (Math.max(L, M) + 0.05) / (Math.min(L, M) + 0.05);
+				};
+				if (ratio(p.ink, p.stock) < 3) throw new Error('ink ' + ratio(p.ink, p.stock).toFixed(2));
+				for (var k of ['heart', 'diamond', 'club', 'spade']) {
+					if (ratio(p[k], p.stock) < 3) throw new Error(k + ' ' + ratio(p[k], p.stock).toFixed(2));
+				}
+				return true;
+			});
+
+			// the deal: one-shot, and it must never leave the frame on its way in
+			c.innerHTML = C.hand({ seed: 3, count: 5, motion: 'deal', size: 320 });
+			await wait(20);
+			var reduced = matchMedia('(prefers-reduced-motion: reduce)').matches;
+			check('the deal never leaves the viewBox, sampled while it runs', function () {
+				// Every card, in viewBox units, at its OWN place in the run. The first version of
+				// this check took `g > g` — which document order puts inside <defs>, an index
+				// block that is never rendered and never animated — and compared its getCTM()
+				// (viewport pixels) against the viewBox (user units). It could not fail: proved by
+				// rewriting the keyframe to start 1500 units out and watching it still pass.
+				var svg = c.querySelector('svg'), vb = svg.getAttribute('viewBox').split(' ').map(Number);
+				var anims = document.getAnimations ? document.getAnimations() : [];
+				if (!reduced && !anims.length) throw new Error('no animation to sample');
+				var cards = svg.querySelectorAll('svg > g > g');
+				if (cards.length !== 5) throw new Error('sampling ' + cards.length + ' cards, not 5');
+				try {
+					for (var f = 0; f <= 1.001; f += 0.2) {
+						for (var i = 0; i < anims.length; i++) {
+							// each card carries its own delay, so a shared duration·f would sample
+							// the last card 10 ms into a travel the first has already finished
+							var t = anims[i].effect.getTiming();
+							anims[i].pause();
+							anims[i].currentTime = (t.delay || 0) + (t.duration || 0) * f;
+						}
+						var toVB = svg.getScreenCTM().inverse();
+						for (var k = 0; k < cards.length; k++) {
+							var m = toVB.multiply(cards[k].getScreenCTM());
+							for (var q = 0; q < 4; q++) {
+								var pt = svg.createSVGPoint();
+								pt.x = q < 2 ? -250 : 250;
+								pt.y = q % 2 ? -350 : 350;
+								var p = pt.matrixTransform(m);
+								var out = Math.max(vb[0] - p.x, p.x - (vb[0] + vb[2]),
+									vb[1] - p.y, p.y - (vb[1] + vb[3]));
+								if (out > 1) {
+									throw new Error('card ' + k + ' outside by ' + Math.round(out) +
+										' units at t=' + f.toFixed(1));
+								}
+							}
+						}
+					}
+				} finally {
+					// a throw must not leave every animation paused — the next check reads them
+					for (var z = 0; z < anims.length; z++) anims[z].play();
+				}
+				return true;
+			});
+
+			await wait(1400);
+			if (reduced) {
+				check('reduced motion is on here: nothing animates at all', function () {
+					// it says only what it measures — that no animation exists. Where the cards
+					// ended up is the twin check below, which needs a deal to have run.
+					return (document.getAnimations ? document.getAnimations().length : 0) === 0;
+				});
+			} else {
+				check('the deal finishes and leaves every card exactly where the static hand is', function () {
+					d.innerHTML = C.hand({ seed: 3, count: 5, size: 320 });
+					var moved = c.querySelectorAll('svg > g'), still = d.querySelectorAll('svg > g');
+					if (moved.length !== 5 || still.length !== 5) throw new Error('not two hands of five');
+					// position, not just size: width and height survive exactly the translation the
+					// deal performs, so comparing them alone cannot see a card left behind. Each
+					// rect is taken relative to its own <svg>, which is what makes the two hosts
+					// comparable at all.
+					var cBox = c.querySelector('svg').getBoundingClientRect();
+					var dBox = d.querySelector('svg').getBoundingClientRect();
+					for (var i = 0; i < moved.length; i++) {
+						var p = moved[i].getBoundingClientRect(), q = still[i].getBoundingClientRect();
+						if (Math.abs(p.width - q.width) > 1 || Math.abs(p.height - q.height) > 1 ||
+							Math.abs((p.left - cBox.left) - (q.left - dBox.left)) > 1 ||
+							Math.abs((p.top - cBox.top) - (q.top - dBox.top)) > 1) {
+							throw new Error('card ' + i + ' did not settle');
+						}
+					}
+					return (document.getAnimations ? document.getAnimations() : []).filter(function (x) {
+						return x.playState === 'running';
+					}).length === 0;
+				});
+			}
+
+			check('init(): null for nothing, a handle for an element, set() merges, destroy() empties', function () {
+				if (C.init('#nothing-here') !== null) throw new Error('not null');
+				var h = C.init(d, { seed: 2, count: 3, stock: 'var(--pin-b, #000)' });
+				if (!d.querySelector('svg')) throw new Error('did not draw');
+				h.set({ brand: '#d97706' });
+				if (d.innerHTML.indexOf('var(--pin-b') < 0) throw new Error('the pin did not survive set()');
+				if (h.get().count !== 3) throw new Error('get() lost the options');
+				h.destroy();
+				return d.innerHTML === '';
+			});
+
+			document.getElementById('verdict').textContent = failed
+				? 'FAIL — ' + failed + ' of ' + total
+				: 'ALL GREEN — ' + total + ' checks';
+			document.title = failed ? 'FAIL' : 'PASS';
+		}
+	})();
+</script>
+</body>
+</html>

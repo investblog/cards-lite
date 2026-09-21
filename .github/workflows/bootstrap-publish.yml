@@ -1,0 +1,139 @@
+name: Bootstrap publish (one-time)
+
+# ONE-TIME use only, to create the package on npm so that Trusted Publishing can
+# be configured for it — npm has no package Settings page until the package
+# exists, so the trusted publisher cannot be attached to a package that is not
+# there yet. Same pattern as the four siblings.
+#
+# How to use (the long form, with the traps, is RELEASING.md):
+#   1. The account must be publish-ready: npm freezes it for 72 hours after a
+#      recovery-code sign-in, and every publish in that window fails 403.
+#   2. npmjs.com → Access Tokens → Generate → **Granular**. Classic Automation
+#      tokens no longer exist (2026). The three settings that matter:
+#        · Packages and scopes: **All packages** — a package that does not exist
+#          yet cannot be named in a per-package token.
+#        · Permissions: **Read and write (publish and stage)**, not stage-only.
+#        · **Bypass 2FA** on — otherwise the publish stops on an EOTP prompt no
+#          workflow can answer. (npm ends bypass-2FA direct publishing ~Jan 2027;
+#          by then this file is deleted and OIDC carries every release.)
+#      Give it the shortest expiry offered: it lives for one run.
+#   3. Repo → Settings → Secrets and variables → Actions → New repository secret,
+#      name it NPM_TOKEN, paste the value BY HAND. It is encrypted and write-only.
+#   4. Actions → "Bootstrap publish (one-time)" → Run workflow.
+#
+# AFTER IT SUCCEEDS, the same day:
+#   - npmjs.com → cards-lite → Settings → Trusted Publisher → GitHub Actions →
+#     investblog / cards-lite / release.yml
+#   - Repo → Settings → Secrets → DELETE NPM_TOKEN, and revoke it on npmjs.com.
+#   - Delete this workflow file. Every later release goes through release.yml
+#     over OIDC with no secret at all.
+#
+# This bootstrap requests id-token and publishes with --provenance: auth comes
+# from the token, the attestation from the GitHub OIDC token, so even the first
+# version ships with provenance. Octagons shipped three releases without it.
+
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  id-token: write # provenance attestation (auth is still NPM_TOKEN)
+
+jobs:
+  publish:
+    # From main only. A dispatch runs against whatever ref is chosen, and this job publishes
+    # whatever that ref carries — there is no tag to check it against, unlike release.yml.
+    if: github.ref_name == 'main'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          registry-url: 'https://registry.npmjs.org'
+
+      - name: Upgrade npm
+        run: npm install -g npm@latest
+
+      # npm sends the token as an HTTP header, so any whitespace in it fails with
+      # "npm_*** is not a legal HTTP header value" — which names neither the cause
+      # nor the fix. Pasting two tokens, or one with a trailing newline, does it.
+      # Only lengths are printed here, never the value.
+      - name: Check the secret is present and well formed
+        env:
+          RAW: ${{ secrets.NPM_TOKEN }}
+        run: |
+          if [ -z "$RAW" ]; then
+            echo "::error::NPM_TOKEN is not set. Add it under Settings → Secrets and variables → Actions."
+            exit 1
+          fi
+          LEN=$(printf '%s' "$RAW" | wc -c | tr -d ' ')
+          CLEAN=$(printf '%s' "$RAW" | tr -d '[:space:]' | wc -c | tr -d ' ')
+          echo "secret length: $LEN; length without whitespace: $CLEAN"
+          if [ "$LEN" -ne "$CLEAN" ]; then
+            echo "::error::NPM_TOKEN contains whitespace or a line break ($((LEN-CLEAN)) char(s)). Re-paste exactly one token, with no trailing newline."
+            exit 1
+          fi
+          case "$RAW" in
+            npm_*) ;;
+            *) echo "::error::NPM_TOKEN does not start with npm_ — is it a granular access token?"; exit 1 ;;
+          esac
+          echo "Token shape looks valid."
+
+      # package.json is born at 0.0.0 and this workflow has no tag to check itself against, so
+      # a run before `npm version minor` would put cards-lite@0.0.0 on the registry — permanently,
+      # since npm does not free a published version. RELEASING.md says to bump first; this is the
+      # backstop for the day nobody reads it.
+      - name: Refuse a placeholder or an already-published version
+        run: |
+          PKG="$(node -p "require('./package.json').version")"
+          echo "package.json says $PKG"
+          if [ "$PKG" = "0.0.0" ]; then
+            echo "::error::version is still 0.0.0 — run 'npm version minor' and push the branch first (RELEASING.md step 4)."
+            exit 1
+          fi
+          if npm view "cards-lite@$PKG" version > /dev/null 2>&1; then
+            echo "::error::cards-lite@$PKG is already on the registry. This workflow is one-time; releases go through release.yml."
+            exit 1
+          fi
+
+      - name: Install
+        run: npm ci
+
+      - name: Lint
+        run: npm run lint
+
+      - name: Build
+        run: npm run build
+
+      - name: Test
+        run: npm test
+
+      - name: Size gate
+        run: npm run -s size
+
+      - name: Verify the tarball carries both entry files
+        run: |
+          npm pack --silent > /dev/null
+          TARBALL="$(ls cards-lite-*.tgz)"
+          tar -tzf "$TARBALL" | sed 's|^package/||' | sort
+          for f in cards.js cards.min.js cards.d.ts package.json README.md LICENSE CHANGELOG.md; do
+            tar -tzf "$TARBALL" | grep -qx "package/$f" || {
+              echo "::error::$f missing from the published tarball"; exit 1; }
+          done
+          rm -f "$TARBALL"
+
+      - name: Publish (provenance attempt over token auth)
+        run: npm publish --provenance --access public
+        env:
+          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
+
+      - name: Next steps
+        run: |
+          echo "Published. Now, the same day:"
+          echo "  1. npmjs.com -> cards-lite -> Settings -> Trusted Publisher"
+          echo "     GitHub Actions | investblog | cards-lite | release.yml"
+          echo "  2. Delete the NPM_TOKEN secret and revoke the token."
+          echo "  3. Delete this workflow file."
+          echo "  4. Future releases: npm version minor && git push --follow-tags"

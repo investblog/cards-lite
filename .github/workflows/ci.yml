@@ -1,0 +1,46 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+permissions:
+  contents: read
+
+jobs:
+  check:
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        # eslint 10 (ADR 001, this repo is the family's pilot) needs
+        # ^20.19.0 || ^22.13.0 || >=24 — both entries satisfy it.
+        node: [22, 24]
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: ${{ matrix.node }}
+      - run: npm ci
+      - run: npm run lint
+      - run: npm run build
+      - run: npm test
+      # A gate, not a report (ADR 009): exits 1 above package.json config.sizeBudget. Measured by
+      # Node (terser + gzip level 9), never the gzip CLI, whose header carries the file name.
+      - name: Size gate
+        run: npm run -s size
+
+      # The package as a consumer gets it: packed, installed into an empty directory, then loaded
+      # the two ways the README promises (ADR 007) — a default import from ESM and require().
+      - name: Tarball contents and consumer smoke test
+        run: |
+          npm pack --silent > /dev/null
+          TARBALL="$(ls cards-lite-*.tgz)"
+          for f in cards.js cards.min.js cards.d.ts package.json README.md LICENSE CHANGELOG.md; do
+            tar -tzf "$TARBALL" | grep -qx "package/$f" || { echo "::error::$f missing from the tarball"; exit 1; }
+          done
+          APP="$RUNNER_TEMP/consumer"
+          mkdir -p "$APP" && cd "$APP" && npm init -y > /dev/null
+          npm install --no-audit --no-fund "$GITHUB_WORKSPACE/$TARBALL" > /dev/null
+          node --input-type=module -e "import C from 'cards-lite'; if (!C.hand({ seed: 'ci' }).startsWith('<svg')) process.exit(1);"
+          node -e "const C = require('cards-lite'); if (!C.card({ card: 'AS' }).startsWith('<svg')) process.exit(1);"
