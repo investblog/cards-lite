@@ -156,13 +156,16 @@ false PASS.</p>
 
 			b.innerHTML = C.card({ card: '7h', seed: 3, stock: 'var(--pin-a, #000)', ink: 'var(--pin-b, #000)', size: 200 });
 			check('a pinned var() colour resolves to the page\'s value', function () {
-				var rects = b.querySelectorAll('rect');
-				return getComputedStyle(rects[0]).fill === 'rgb(255, 0, 0)' &&
-					getComputedStyle(rects[1]).stroke === 'rgb(0, 128, 0)';
+				// by what they carry, not by their position: a <rect> added to any def would
+				// silently re-point an index into querySelectorAll
+				var stock = b.querySelector('rect[fill^="var"]'), ink = b.querySelector('rect[stroke^="var"]');
+				if (!stock || !ink) throw new Error('the pinned rects are not there to read');
+				return getComputedStyle(stock).fill === 'rgb(255, 0, 0)' &&
+					getComputedStyle(ink).stroke === 'rgb(0, 128, 0)';
 			});
 			document.documentElement.style.setProperty('--pin-a', 'rgb(0, 0, 255)');
 			check('changing the page variable recolours it without a re-render', function () {
-				return getComputedStyle(b.querySelector('rect')).fill === 'rgb(0, 0, 255)';
+				return getComputedStyle(b.querySelector('rect[fill^="var"]')).fill === 'rgb(0, 0, 255)';
 			});
 
 			// The two halves of the card get their colour by opposite routes, so both are asked.
@@ -209,27 +212,6 @@ false PASS.</p>
 				// two empty sets share nothing either: markup with no ids at all would pass this
 				if (Object.keys(x).length < 10) throw new Error('only ' + Object.keys(x).length + ' names found');
 				for (var k in x) if (y[k]) throw new Error('shared: ' + k);
-				return true;
-			});
-
-			// the ink must read against the paper it is printed on. This one needs no browser —
-			// it is WCAG arithmetic over palette() and would sit just as well in `npm test`; it
-			// stays here because the page is where anyone looks when a brand reads badly.
-			check('the ink and every suit clear their contrast floor against the stock (default brand)', function () {
-				var p = C.palette();
-				var lin = function (u) { u /= 255; return u <= 0.04045 ? u / 12.92 : Math.pow((u + 0.055) / 1.055, 2.4); };
-				var lum = function (hex) {
-					var v = hex.replace('#', '').match(/../g).map(function (h) { return lin(parseInt(h, 16)); });
-					return 0.2126 * v[0] + 0.7152 * v[1] + 0.0722 * v[2];
-				};
-				var ratio = function (m, n) {
-					var L = lum(m), M = lum(n);
-					return (Math.max(L, M) + 0.05) / (Math.min(L, M) + 0.05);
-				};
-				if (ratio(p.ink, p.stock) < 3) throw new Error('ink ' + ratio(p.ink, p.stock).toFixed(2));
-				for (var k of ['heart', 'diamond', 'club', 'spade']) {
-					if (ratio(p[k], p.stock) < 3) throw new Error(k + ' ' + ratio(p[k], p.stock).toFixed(2));
-				}
 				return true;
 			});
 
@@ -282,31 +264,43 @@ false PASS.</p>
 			});
 
 			await wait(1400);
+			// Both branches end in the same question — is every card where the static hand puts it —
+			// so they ask it with one function. Under reduced motion the deal is `animation: none`,
+			// which is only safe because the keyframe has a `from` and no `to`.
+			function settled() {
+				d.innerHTML = C.hand({ seed: 3, count: 5, size: 320 });
+				var moved = c.querySelectorAll('svg > g'), still = d.querySelectorAll('svg > g');
+				if (moved.length !== 5 || still.length !== 5) throw new Error('not two hands of five');
+				// position, not just size: width and height survive exactly the translation the deal
+				// performs, so comparing them alone cannot see a card left behind. Each rect is taken
+				// relative to its own <svg>, which is what makes the two hosts comparable at all.
+				var cBox = c.querySelector('svg').getBoundingClientRect();
+				var dBox = d.querySelector('svg').getBoundingClientRect();
+				for (var i = 0; i < moved.length; i++) {
+					var p = moved[i].getBoundingClientRect(), q = still[i].getBoundingClientRect();
+					if (Math.abs(p.width - q.width) > 1 || Math.abs(p.height - q.height) > 1 ||
+						Math.abs((p.left - cBox.left) - (q.left - dBox.left)) > 1 ||
+						Math.abs((p.top - cBox.top) - (q.top - dBox.top)) > 1) {
+						throw new Error('card ' + i + ' is not where the static hand puts it');
+					}
+				}
+				return true;
+			}
+
 			if (reduced) {
-				check('reduced motion is on here: nothing animates at all', function () {
-					// it says only what it measures — that no animation exists. Where the cards
-					// ended up is the twin check below, which needs a deal to have run.
-					return (document.getAnimations ? document.getAnimations().length : 0) === 0;
+				check('reduced motion: a fresh deal animates nothing, and the cards are already home', function () {
+					// sampled the moment it is drawn. Counting animations after the 1.4 s wait the
+					// other branch needs proves nothing: the deal fills `backwards`, so once it has
+					// finished the browser stops returning it, and the check passed unchanged with
+					// the @media gate cut out of the library — measured, not supposed.
+					b.innerHTML = C.hand({ seed: 9, count: 5, size: 320, motion: 'deal' });
+					var live = (document.getAnimations ? document.getAnimations() : []).length;
+					if (live !== 0) throw new Error(live + ' animations under prefers-reduced-motion');
+					return settled();
 				});
 			} else {
 				check('the deal finishes and leaves every card exactly where the static hand is', function () {
-					d.innerHTML = C.hand({ seed: 3, count: 5, size: 320 });
-					var moved = c.querySelectorAll('svg > g'), still = d.querySelectorAll('svg > g');
-					if (moved.length !== 5 || still.length !== 5) throw new Error('not two hands of five');
-					// position, not just size: width and height survive exactly the translation the
-					// deal performs, so comparing them alone cannot see a card left behind. Each
-					// rect is taken relative to its own <svg>, which is what makes the two hosts
-					// comparable at all.
-					var cBox = c.querySelector('svg').getBoundingClientRect();
-					var dBox = d.querySelector('svg').getBoundingClientRect();
-					for (var i = 0; i < moved.length; i++) {
-						var p = moved[i].getBoundingClientRect(), q = still[i].getBoundingClientRect();
-						if (Math.abs(p.width - q.width) > 1 || Math.abs(p.height - q.height) > 1 ||
-							Math.abs((p.left - cBox.left) - (q.left - dBox.left)) > 1 ||
-							Math.abs((p.top - cBox.top) - (q.top - dBox.top)) > 1) {
-							throw new Error('card ' + i + ' did not settle');
-						}
-					}
+					if (!settled()) return false;
 					return (document.getAnimations ? document.getAnimations() : []).filter(function (x) {
 						return x.playState === 'running';
 					}).length === 0;

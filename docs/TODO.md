@@ -28,8 +28,8 @@ the way.
   9088 B** (measured 8747, 2026-09-21). 49 tests, including 2000 hands checked by an evaluator the
   test file carries itself — the library has none and must not grow one (ADR 010).
 - [x] M5 — the browser gate, the playground, CI and release workflows, README/CHANGELOG/RELEASING
-  (2026-09-21). `test/verify.html`: **14 checks ALL GREEN in Chromium 153, Firefox and WebKit**,
-  run from a local server, cache-busted. 57 Node tests, 8950 B.
+  (2026-09-21). `test/verify.html`: **13 checks ALL GREEN in Chromium 153, Firefox and WebKit,
+  in both motion modes**, run from a local server, cache-busted. 60 Node tests, 8950 B.
   Reviewed in two independent passes — the Codex gate was out of quota until 2026-09-25, so the
   house `code-review` protocol ran instead. Twenty findings, all verified by measurement before
   acting: **three were defects in the library** (a spread name from outside could throw or draw a
@@ -37,9 +37,16 @@ the way.
   outside the viewBox — ADR 013), two were false promises in this spec (five options that were
   never implemented; `motion`/`speed`/`fit`/`pad` claimed as shared), and two were checks that
   could not fail. The rest were documentation drift, corrected against measurement.
-- [ ] M5.1 — the two browser checks the review left standing: the contrast check is WCAG
-  arithmetic that needs no browser and samples only the default brand, and the reduced-motion
-  path is reasoned from the code rather than run (no way to emulate the query from this tool).
+- [x] M5.1 — the two checks the review left standing, and the acceptance criterion nobody had
+  tested (2026-09-21). The contrast check moved to `npm test` and grew from one brand to 28 × two
+  themes × five roles, worst 4.39:1 against a floor of 3. Reduced motion is now **run**, not
+  reasoned: `reducedMotion: 'reduce'` in all three engines — and the first version of that check
+  passed with the `@media` gate cut out of the library, because a finished `backwards` animation
+  is no longer returned by `getAnimations()`; it samples a fresh deal now, and was seen to fail.
+  The index-occlusion criterion ("unoccluded in every spread but `pile` and `stack`") was tested
+  only for `cascade`, and by a proxy on `dx`: it now carries the index's five points into every
+  later card's own space — `fan`, `row`, `cascade`, `pair` clear over 60 seeds × three counts,
+  and `pile`/`stack` are asserted to cover, so the exemption stays a measured fact.
 - [ ] `split` — two hands side by side. Every layout places one group, so it waits for a two-group
   layout rather than being faked with four cards in a row (spec: Hands).
 - [ ] M6 — first integration in a static site, then release 0.1.0.

@@ -15,7 +15,8 @@
     "size": "node scripts/size.mjs",
     "lint": "eslint .",
     "test": "node --test \"test/*.test.mjs\"",
-    "prepack": "npm run build"
+    "prepack": "npm run build",
+    "gate:browser": "node scripts/browser-gate.mjs"
   },
   "config": {
     "sizeBudget": 9088

@@ -35,5 +35,5 @@ First release.
 - `Cards.palette(brand, { theme })` and `Cards.init(el, opts)` (browser).
 - No signature in the output beyond the 17 fixed subject paths, which are counted and tested
   (ADR 005): every id, class and keyframe is a seeded token.
-- 57 Node tests, a browser verify page of 14 checks green in Chromium, Firefox and WebKit,
-  8950 B min+gzip against a 9088 B budget (ADR 009).
+- 60 Node tests, a browser verify page of 13 checks green in Chromium, Firefox and WebKit and in
+  both motion modes, 8950 B min+gzip against a 9088 B budget (ADR 009).

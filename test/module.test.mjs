@@ -127,3 +127,38 @@ test('gilt reads as gold and stays ornament: above its floor, below the pips (M1
 		assert.ok(g < ratio(p.spade, p.stock), 'gilt never competes with a pip');
 	}
 });
+
+test('ink and every suit clear the contrast floor against the stock, right round the hue circle', () => {
+	// This began as a browser check, which was the wrong room for it: nothing here needs a DOM,
+	// and there it sampled the default brand alone. Measured over 28 brands x both themes x five
+	// roles — 280 pairs — the worst is 4.39:1 (a mid blue's diamond), so a floor of 3 has real
+	// margin and is not a number fitted to the current palette.
+	const lum = (hex) => {
+		const [r, g, b] = hex.slice(1).match(/../gu).map((h) => parseInt(h, 16) / 255)
+			.map((u) => (u <= 0.04045 ? u / 12.92 : ((u + 0.055) / 1.055) ** 2.4));
+		return 0.2126 * r + 0.7152 * g + 0.0722 * b;
+	};
+	const ratio = (a, b) => (Math.max(lum(a), lum(b)) + 0.05) / (Math.min(lum(a), lum(b)) + 0.05);
+	// a hue wheel plus the achromatics, which take the fallback path the default brand never does
+	const wheel = [];
+	for (let h = 0; h < 360; h += 15) {
+		const f = (n) => {
+			const k = (n + h / 30) % 12;
+			const c = 0.5 - 0.225 * Math.max(-1, Math.min(k - 3, 9 - k, 1));
+			return Math.round(c * 255).toString(16).padStart(2, '0');
+		};
+		wheel.push('#' + f(0) + f(8) + f(4));
+	}
+	let worst = Infinity, where = '';
+	for (const brand of [undefined, '#8a8a8a', '#4a4a4a', '#e0e0e0', ...wheel]) {
+		for (const theme of ['dark', 'light']) {
+			const p = Cards.palette(brand, { theme });
+			for (const role of ['ink', 'heart', 'diamond', 'club', 'spade']) {
+				const r = ratio(p[role], p.stock);
+				if (r < worst) { worst = r; where = `${role} on ${brand || 'default'} (${theme})`; }
+				assert.ok(r >= 3, `${where}: ${r.toFixed(2)}:1 against the stock`);
+			}
+		}
+	}
+	assert.ok(worst >= 4, `the margin has not quietly eroded: worst is ${worst.toFixed(2)} at ${where}`);
+});

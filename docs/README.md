@@ -10,8 +10,9 @@ project: cards-lite
 Docs for developers and agents. `index.html` is the verification surface, `test/` the gate.
 Contract-first: change the doc here **before** the code, then code.
 
-**Status (2026-09-21): M5 — the browser gate is ALL GREEN in Chromium, Firefox and WebKit, the
-playground, the CI and release workflows and the public docs are in. Nothing is published.** What
+**Status (2026-09-21): M5 — the browser gate is ALL GREEN in Chromium, Firefox and WebKit, in
+both motion modes; the playground, the CI and release workflows and the public docs are in.
+Nothing is published.** What
 remains is M6: a first integration in a static site, then the 0.1.0 release — the repository, the
 token and the publish each on the maintainer's go (`RELEASING.md`). This line is kept
 true at every milestone; a spec that still says "SPEC" after shipping (hexagons) is the thing it
@@ -286,15 +287,15 @@ exempt below its top card for the same reason.
 | Spread | Seeded parameters | Typical aspect, 5 cards |
 |---|---|---|
 | `fan` | `arc` 1.6–2.6 × H · `reveal` 0.34–0.62 (the step is derived: `Δ = degrees(reveal·W/Rp)`, landing at 5.3–15.9°) · `lean` ±10° | 1.4 : 1 |
-
-The aspects are **medians over 300 seeds at five cards**, not ceilings: `fan` runs 1.13–1.75,
-`row` 1.52–2.34, `cascade` 0.78–1.21, `stack` 0.73–0.83, `pile` 0.74–1.10, `pair` 0.78–0.91.
-A page reserving a box takes the band, not the median.
 | `row` | `reveal` 0.32–0.62 · `rise` 0–0.05 H, sampled from a **fixed** parabola · `tilt` ±0–3° alternating | 1.9 : 1 |
 | `cascade` | `dx` 0.28–0.42 W (**floor is `IDX`** — the layout where the index binds) · `dy` 0.14–0.26 H · `tilt` 0–2.5° accumulating | 0.94 : 1 |
 | `stack` | `lift` 2–5 units/card · `skew` ±0.35°/card · `dir` 100–140° · `mess` 0–3 cards breaking rank | 0.75 : 1 |
 | `pile` | `scatter` 0.10–0.35 W in a disc · `spin` ±18–40° · a seeded z permutation | 0.93 : 1 |
 | `pair` | `angle` 10–26° · `offset` (0.38–0.52 W, −0.02…+0.06 H) · a crosswise third for double-down | 1.01 : 1 |
+
+The aspects are **medians over 300 seeds at five cards**, not ceilings: `fan` runs 1.13–1.75,
+`row` 1.52–2.34, `cascade` 0.78–1.21, `stack` 0.73–0.83, `pile` 0.74–1.10, `pair` 0.78–0.91.
+A page reserving a box takes the band, not the median.
 
 Per-card wobble comes from an **indexed** key (`spread:jitter:3`), never a loop over one stream,
 so bumping `count` does not re-roll the cards already placed. For the same reason the row's rise
@@ -535,6 +536,30 @@ footer: "Made in [301](https://301.st) · for [spintax.net](https://spintax.net)
   publish-ready first** — npm freezes an account for 72 hours after a recovery-code sign-in
   (roulette-lite, 2026-09-18).
 
+## The browser gate, and how a check earns trust
+
+`test/verify.html` is the half of the gate that needs a DOM: parsing, computed colour, hit
+testing, rasterised pixels, CSS motion, `init()`. Everything that is arithmetic belongs in
+`npm test` instead — the contrast floor started here and moved there, where it grew from one
+brand to twenty-eight.
+
+`node scripts/browser-gate.mjs` serves the repo and runs that page in **Chromium, Firefox and
+WebKit, twice each** — once normally and once under `prefers-reduced-motion`, because the reduced
+path is a different branch and a branch nobody runs is a branch nobody knows about.
+
+**`--mutate` is the part that matters.** It breaks `cards.js` on purpose, one anchor at a time —
+the deck missing from the exports, an unclosed `<defs>`, the index clamp cut, pins ignored, pips
+unpainted, the M4 deal restored, the reduced-motion gate removed — and reports any check that
+never went red. Five checks in this repo once passed against a library that was broken; each
+looked careful, and the only thing that would have caught them was watching them fail. The rule
+this enforces:
+
+> A check earns trust by failing on demand. Add one, and add the mutation that reddens it in the
+> same sitting — `--mutate` prints the ones you skipped.
+
+The whole list has been seen red as of M5. A mutation whose anchor has moved is reported as a
+problem rather than skipped quietly: a mutation that no longer applies proves nothing.
+
 ## Acceptance criteria (v0.1)
 
 - `card()`, `hand()` and `deck()` run in Node ESM, CommonJS and a `<script>`.
@@ -549,7 +574,8 @@ footer: "Made in [301](https://301.st) · for [spintax.net](https://spintax.net)
 - Both styles × both themes look right in a browser — a contact sheet per spread, shown to the
   user at M2 and M3.
 - `npm run lint`, `npm test`, `npm run size` pass; `test/verify.html` (cache-busted) is ALL GREEN
-  in Chromium, Firefox and WebKit.
+  in Chromium, Firefox and WebKit, under `prefers-reduced-motion` and without it. Every check in
+  it has been seen to fail against a deliberately broken library — five of them could not, once.
 
 ## See also
 

@@ -24,7 +24,7 @@
 	#stage.sheet { grid-template-columns: repeat(auto-fill, minmax(13rem, 1fr)); align-items: start; gap: 16px; }
 	#stage.sheet figure { margin: 0; text-align: center; color: var(--muted); font-size: 12px; cursor: pointer; }
 	#stage.sheet svg { width: 100%; height: auto; display: block; }
-	#stage.one svg { width: min(26rem, 100%); }
+	#stage.single svg { width: min(26rem, 100%); }
 	.meta { color: var(--muted); font-size: 12px; margin: 4px 0 0; }
 	footer { margin-top: auto; color: var(--muted); font-size: 12px; }
 	a { color: var(--accent); }
@@ -100,9 +100,12 @@
 			stage.className = '';
 			if (mode.value === 'sheet') {
 				stage.className = 'sheet';
-				var base = typeof o.seed === 'number' ? o.seed : 1;
+				// a string seed varies by suffix rather than silently falling back to 1..24 —
+				// 'example.com-7' is a seed like any other, and the caption is what was drawn
+				var num = typeof o.seed === 'number';
 				for (i = 0; i < 24; i++) {
-					html += tile(Cards.hand(live({ seed: base + i })), 'seed ' + (base + i), base + i);
+					var s = num ? o.seed + i : o.seed + '-' + i;
+					html += tile(Cards.hand(live({ seed: s })), String(s), num ? s : null);
 				}
 			} else if (mode.value === 'spreads') {
 				stage.className = 'sheet';
@@ -120,7 +123,7 @@
 			} else if (mode.value === 'deck') {
 				html = Cards.deck(o);
 			} else if (mode.value === 'card') {
-				stage.className = 'one';
+				stage.className = 'single';
 				html = Cards.card(o.cards ? Object.assign({}, o, { card: String(o.cards).split(/\s+/)[0] }) : o);
 			} else {
 				html = Cards.hand(o);
@@ -144,7 +147,6 @@
 			else if (k) opts[k] = t.value;
 			render();
 		});
-		mode.addEventListener('change', render);
 		document.getElementById('deal').onclick = function () { setSeed(Math.floor(Math.random() * 1e6)); };
 		document.getElementById('prev').onclick = function () { var v = seedValue(); setSeed(typeof v === 'number' ? Math.max(0, v - (mode.value === 'sheet' ? 24 : 1)) : 1); };
 		document.getElementById('next').onclick = function () { var v = seedValue(); setSeed(typeof v === 'number' ? v + (mode.value === 'sheet' ? 24 : 1) : 1); };

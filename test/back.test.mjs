@@ -60,7 +60,7 @@ test('the back: a seeded pattern, all three lattices in play, detail 1 drops it'
 test('every spread frames its cards, whatever the layout', () => {
 	const body = (s) => s.slice(s.indexOf('</defs>') + 7);
 	for (const spread of ['fan', 'row', 'cascade', 'stack', 'pile', 'pair']) {
-		for (let seed = 1; seed <= 25; seed++) {
+		for (let seed = 1; seed <= 60; seed++) {
 			const svg = Cards.hand({ seed, spread, count: spread === 'pair' ? 2 : 5 });
 			const [bx, by, bw, bh] = svg.match(/viewBox="([^"]+)"/u)[1].split(' ').map(Number);
 			for (const m of body(svg).matchAll(/translate\((-?[\d.]+) (-?[\d.]+)\)(?: rotate\((-?[\d.]+)\))?/gu)) {
@@ -73,6 +73,56 @@ test('every spread frames its cards, whatever the layout', () => {
 				}
 			}
 		}
+	}
+});
+
+// The acceptance criterion in its own words: the index band is unoccluded in every spread but
+// `pile` and `stack`. Not by a proxy on dx — by carrying the index's own five points into layout
+// space and then into the local space of every card painted after it, which is the only form that
+// survives a layout gaining rotation.
+const EM = [[-216, -306], [-152, -306], [-152, -210], [-216, -210], [-184, -258]];
+function placements(svg) {
+	const body = svg.slice(svg.indexOf('</defs>'));   // <defs> carries groups of its own
+	return [...body.matchAll(/<g transform="translate\((-?[\d.]+) (-?[\d.]+)\)(?: rotate\((-?[\d.]+)\))?"/gu)]
+		.map((m) => [Number(m[1]), Number(m[2]), Number(m[3] || 0) * Math.PI / 180]);
+}
+// how deep the index point sits inside a later card: positive means covered
+function buriedDepth(svg) {
+	const P = placements(svg);
+	let deepest = -1e9;
+	for (let i = 0; i < P.length; i++) {
+		const [cx, cy, a] = P[i], co = Math.cos(a), si = Math.sin(a);
+		for (const [px, py] of EM) {
+			const X = cx + px * co - py * si, Y = cy + px * si + py * co;
+			for (let j = i + 1; j < P.length; j++) {
+				const [ox, oy, b] = P[j], cb = Math.cos(-b), sb = Math.sin(-b);
+				const dx = X - ox, dy = Y - oy;
+				const lx = dx * cb - dy * sb, ly = dx * sb + dy * cb;
+				deepest = Math.max(deepest, Math.min(250 - Math.abs(lx), 350 - Math.abs(ly)));
+			}
+		}
+	}
+	return deepest;
+}
+
+test('no overlapping spread covers an index, over 60 seeds and three counts', () => {
+	for (const spread of ['fan', 'row', 'cascade', 'pair']) {
+		for (let seed = 1; seed <= 60; seed++) {
+			for (const count of [2, 3, 5]) {
+				const d = buriedDepth(Cards.hand({ seed, spread, count }));
+				assert.ok(d < 0, `${spread} seed ${seed} count ${count}: an index is ${Math.round(d)} units under a later card`);
+			}
+		}
+	}
+});
+
+test('and pile and stack DO cover one — the exemption is the motif, not an oversight', () => {
+	// a heap that hides nothing is not a heap. If this ever goes quiet, the exemption written in
+	// the spec has become a claim about nothing.
+	for (const spread of ['pile', 'stack']) {
+		let covered = 0;
+		for (let seed = 1; seed <= 60; seed++) if (buriedDepth(Cards.hand({ seed, spread, count: 5 })) > 0) covered++;
+		assert.ok(covered > 30, `${spread}: only ${covered} of 60 seeds hide an index`);
 	}
 });
 
