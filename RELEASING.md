@@ -43,6 +43,26 @@ one.
    revoke the token on npmjs.com, delete `bootstrap-publish.yml`. Octagons' token sat in its repo
    three releases after it should have gone — that is the incident this step pins.
 
+## What a bypass-2FA token can and cannot do (measured on roulette-lite, 2026-09-21)
+
+It publishes, and that is nearly all. Everything else answers **`EOTP`**, with npm printing
+`Two-factor authentication is required for this operation` in its own words:
+
+| Operation | With a bypass-2FA token |
+|---|---|
+| `npm publish` from CI | works — with provenance when the workflow requests `id-token` |
+| `npm token list` | works |
+| `npm trust github` (configure a trusted publisher) | **EOTP** |
+| `npm trust list` (merely *read* them) | **EOTP** |
+| `npm token revoke` | **EOTP** |
+| `npm profile get`, `npm access list packages` | 403 — account-level, closed to granular tokens |
+
+There is an `npm trust github <pkg> --file release.yml --repo <org/repo> --allow-publish` command,
+and it is **not** a way around a missing second factor. **The trusted publisher has to be
+configured while authenticated, and so does revoking the token afterwards.** So the second factor
+must be in hand *before* the release, not found during it — and the web flow npm offers instead
+(`npmjs.com/auth/cli/…`) lands on exactly the same screen.
+
 ## Trusted Publisher (right after the first publish)
 
 npmjs.com → package **cards-lite** → **Settings** → **Trusted Publisher** → GitHub Actions:
