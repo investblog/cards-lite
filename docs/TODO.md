@@ -67,6 +67,26 @@ the way.
   family's problem, not this repo's alone: the same pin sits in all five. Worth doing as one
   pass, the way ADR 001 made this repo the eslint-10 pilot.
 
+## Not verified — read this before trusting the green
+
+Everything below is true of the gates and false of the world; nobody has used this library yet.
+
+- **It has never been on a real page.** M6's integration is the step that exists precisely because
+  tests do not catch what a layout does. Until then "works" means "passes 62 Node tests and 13
+  browser checks", nothing more.
+- **`index.html` is covered by no gate at all.** `scripts/browser-gate.mjs` opens only
+  `test/verify.html`, so every playground fix this session made was verified by hand in Chromium
+  and by reading. Three of them were real defects (the presets gallery showed twelve identical
+  cascades), which is the argument for a gate rather than against one.
+- **The mutation pass runs in Chromium**, except the two reduced-motion mutations, which run in all
+  three. So a Firefox- or WebKit-only regression in the other eleven checks would not be caught by
+  `--mutate`, only by the plain three-engine run.
+- **Nothing is published.** The package name is free, the version is deliberately `0.0.0`, and the
+  npm badge in `README.md` will 404 until the first publish. That is expected, not broken.
+- **The occlusion test proves something weaker than the criterion says** — five points of a
+  64-wide em, where the contract reserves a 140-wide strip. Enough to pin a regression, not enough
+  to be the criterion. Said so in the test itself.
+
 ## Re-ported when needed
 
 Kept out on purpose — the family rule is that nothing speculative is carried, and lint enforces it:
@@ -83,8 +103,10 @@ Kept out on purpose — the family rule is that nothing speculative is carried, 
 - `deck: 'two'` — the two-colour convention (diamonds alias hearts, clubs alias spades), ~20 B.
   Reserved, not proposed.
 - **Start the deal on entry** — an IntersectionObserver in `init()`, so a hand below the fold
-  deals when it is reached rather than before. ~150 B against 183 B of headroom, so it is a
-  budget conversation, not a free addition.
+  deals when it is reached rather than before. **The headroom it was costed against is gone:**
+  183 B was measured at M4 against 8747; M5 and M5.1 spent it on the three engine fixes and now
+  the library is 8950, leaving **138 B**. At ~150 B this no longer fits at all — it is a budget
+  *raise* conversation now, not a budget conversation (re-measured 2026-09-21).
 - `polymorph` — the family's answer to the shared element skeleton, and the long answer to the
   17-path exception (ADR 005).
 - **The deck body** — handing a long `stack` off to an oblique extrusion of ~10 shapes instead of
