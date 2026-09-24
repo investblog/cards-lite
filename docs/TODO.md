@@ -60,12 +60,11 @@ the way.
     (public, default `main`, one-line description with the measured size, homepage and Pages from
     the root of `main`, topics from `package.json` keywords — which the two newest siblings are
     missing). CI green on the first push; Pages answer 200 and the playground draws.
-  - [~] the integration — **started 2026-09-24**: photoalbummax.lol (301's test-landing family)
-    ships hands in its hero, two SVGs per hero, the narrow one (`width <= 64rem`) generated with
-    `face: false` and remapped to pale `var()` tints. Looking at it found two defects no gate had
-    — a see-through `line` back and a court panel left filled under `face: false` — fixed in
-    `cd58e2e` (ADR 011 addendum). The site's source is not in `C:\projects` under any name a
-    grep found; its hand options were read off the live DOM.
+  - [~] the integration — **started 2026-09-24** on photoalbummax.lol, which ships hands in its
+    hero: two SVGs per hero, the narrow one (`width <= 64rem`) generated with `face: false` and
+    remapped to pale `var()` tints. Looking at it found two defects no gate had — a see-through
+    `line` back and a court panel left filled under `face: false` — fixed in `cd58e2e` (ADR 011
+    addendum). The site's hand options were read off the live DOM, not its source.
   - [ ] the release — `RELEASING.md`, and **`npm version minor` before the
     bootstrap publish**, or 0.0.0 goes to the registry for good.
 - [ ] **`actions/checkout@v4` and `actions/setup-node@v4` are on deprecated Node 20** — GitHub
