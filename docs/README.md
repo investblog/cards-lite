@@ -218,6 +218,18 @@ Under `theme: 'light'` the **back** defaults to `line`: filled cells over a whit
 as the site's palette and start fighting it. That lesson (roulette's `table()`) now applies to the
 back alone, because the face is paper in both themes.
 
+**A `line` back is paper too.** The back's field is painted in `stock` and outlined in `back`, and
+its frame and lattice are drawn in `back` rather than in `stock` — the colour `flat` fills the
+field with. A face-down card therefore hides what lies under it exactly as a face-up one does: a
+see-through back in a fan is the transparent card this section refuses for the face. Until
+2026-09-24 the `line` field was unfilled, and the frame and lattice, still in `stock`, drew
+paper-on-paper and all but vanished on a light page.
+
+**`face: false` unpaints everything that is paper** — the face, the back's field, and the court
+panel, which is `stock`-filled under `flat`. A filled panel on an unpainted card is an opaque
+block floating in a see-through one; it was what the airy treatment actually looked like on the
+first site to use it.
+
 ## The card back — where the family meets
 
 The back is the seed's richest work, and its pattern comes from the siblings' own lattices:
@@ -428,7 +440,7 @@ Shared by `card()`, `hand()` and `deck()`:
 | `detail` | `2` | 1 no lattice on backs · 2 standard |
 | `weight` | `1` | line weight multiplier |
 | `heart diamond club spade gilt stock ink back` | `'auto'` | any CSS colour string |
-| `face` | `true` | `false` leaves the card unpainted — the airy treatment |
+| `face` | `true` | `false` leaves every paper surface unpainted — face, back field, court panel: the airy treatment |
 | `index` | `'both'` | `'both'` \| `'tl'` \| `'none'` |
 | `pips` | `true` | `false` = index only |
 | `lattice` | `'auto'` | `'trigon'` \| `'hex'` \| `'octagon'` \| `'none'` |
@@ -548,9 +560,9 @@ brand to twenty-eight.
 WebKit, twice each** — once normally and once under `prefers-reduced-motion`, because the reduced
 path is a different branch and a branch nobody runs is a branch nobody knows about.
 
-**`--mutate` is the part that matters.** It breaks `cards.js` thirteen ways, one anchor at a time —
+**`--mutate` is the part that matters.** It breaks `cards.js` fourteen ways, one anchor at a time —
 the deck missing from the exports, an unclosed `<defs>`, the index clamp cut, pins ignored, pips
-unpainted, the M4 deal restored, the reduced-motion gate removed — and reports any check that
+unpainted, a `line` back left see-through, the M4 deal restored, the reduced-motion gate removed — and reports any check that
 never went red. Five checks in this repo once passed against a library that was broken; each
 looked careful, and the only thing that would have caught them was watching them fail. The rule
 this enforces:

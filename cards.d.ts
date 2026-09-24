@@ -32,7 +32,7 @@ declare namespace Cards {
 		stock?: Pin;
 		ink?: Pin;
 		back?: Pin;
-		/** false leaves the card unpainted. */
+		/** false leaves every paper surface unpainted: the face, the back's field and the court panel. */
 		face?: boolean;
 		index?: 'both' | 'tl' | 'none';
 		pips?: boolean;

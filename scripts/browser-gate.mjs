@@ -107,6 +107,7 @@ const MUTATIONS = [
 	{ label: 'court panel resized', edits: [["'width', 260,", "'width', 262,"]] },
 	{ label: 'the row index clamp cut', edits: [["Math.max(0.32 + 0.30 * S('spread:row:reveal')(), IDX / W)", "(0.12 + 0.02 * S('spread:row:reveal')())"]] },
 	{ label: 'pins ignored', edits: [["return pin != null && pin !== 'auto' ? esc(pin) : toHex(r[role]);", 'return toHex(r[role]);']] },
+	{ label: 'a line back left unfilled', edits: [["'fill', flat ? c.col('back') : stock,", "'fill', flat ? c.col('back') : 'none',"]] },
 	{ label: 'pips unpainted', edits: [["'fill', flat ? suit : 'none',", "'fill', 'none',"]] },
 	{ label: 'salt ignored for ids', edits: [["S('ids' + (salt || ''))", "S('ids')"]] },
 	{ label: 'the M4 deal restored', edits: [["var spin = -Math.asin(0.6 * pad / (Math.sqrt(W * W + H * H) / 2)) / DEG *", 'var spin = -12 - 16 *']] },

@@ -205,11 +205,42 @@ test('an explicit list never loses a card: the spread gives way instead', () => 
 	assert.equal(drawn({ count: 30, spread: 'fan', seed: 2 }), 10);
 });
 
-test('a light theme draws the back in contours, a dark one fills it (ADR 011)', () => {
-	const fills = (o) => (Cards.card(Object.assign({ seed: 3, facedown: true }, o)).match(/fill="#[0-9a-f]{6}"/gu) || []).length;
-	assert.ok(fills({ theme: 'light' }) < fills({ theme: 'dark' }), 'light leans on the outline');
-	// an explicit style still wins, in both directions
-	assert.equal(fills({ theme: 'light', style: 'flat' }), fills({ theme: 'dark', style: 'flat' }));
+test('a light theme draws the back in contours on paper, a dark one fills it (ADR 011)', () => {
+	const back = (o) => Cards.card(Object.assign({ seed: 3, facedown: true }, o));
+	// the field is the first rect after </defs>: <defs> holds the pattern, which looks alike
+	const field = (o) => back(o).split('</defs>')[1].match(/<rect [^>]*>/u)[0];
+	for (const theme of ['light', 'dark']) {
+		const { stock, back: bk } = Cards.palette(undefined, { theme });
+		const line = field({ theme, style: 'line' }), flat = field({ theme, style: 'flat' });
+		// a line back is paper, or a face-down card shows the card beneath it
+		assert.match(line, new RegExp(`fill="${stock}"`, 'u'), `${theme} line field is paper`);
+		assert.match(line, new RegExp(`stroke="${bk}"`, 'u'), `${theme} line field is outlined in back`);
+		assert.match(flat, new RegExp(`fill="${bk}"`, 'u'), `${theme} flat field is the back colour`);
+		// on paper, the frame and lattice must not be paper too, or they vanish
+		const frame = back({ theme, style: 'line' }).split('</defs>')[1].match(/<rect [^>]*>/gu)[1];
+		assert.match(frame, new RegExp(`stroke="${bk}"`, 'u'), `${theme} line frame is drawn in back`);
+		assert.match(back({ theme, style: 'line' }).split('</defs>')[0], new RegExp(`<path [^>]*stroke="${bk}"`, 'u'),
+			`${theme} line lattice is drawn in back`);
+	}
+	// the default under light is line, under dark flat
+	assert.equal(back({ theme: 'light' }), back({ theme: 'light', style: 'line' }));
+	assert.equal(back({ theme: 'dark' }), back({ theme: 'dark', style: 'flat' }));
+});
+
+test('face: false unpaints every paper surface — face, back field and court panel (ADR 011)', () => {
+	for (const style of ['flat', 'line']) {
+		for (const card of ['KH', 'QS', 'JD']) {
+			const airy = Cards.card({ seed: 3, card, style, face: false });
+			const panels = airy.split('</defs>')[1].match(/<rect [^>]*width="260"[^>]*>/gu) || [];
+			assert.equal(panels.length, 1, `${card} ${style} has its panel`);
+			assert.match(panels[0], /fill="none"/u, `${card} ${style} panel is unpainted`);
+		}
+		const down = Cards.card({ seed: 3, style, face: false, facedown: true }).split('</defs>')[1];
+		assert.doesNotMatch(down, /<rect [^>]*width="500"/u, `${style} back has no field`);
+	}
+	// and with the face on, a flat panel is still paper
+	const on = Cards.card({ seed: 3, card: 'KH', style: 'flat' }).split('</defs>')[1].match(/<rect [^>]*width="260"[^>]*>/u)[0];
+	assert.doesNotMatch(on, /fill="none"/u);
 });
 
 test('a pile is painted in a seeded order, but every card keeps its own place', () => {

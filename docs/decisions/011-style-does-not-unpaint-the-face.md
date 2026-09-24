@@ -33,3 +33,17 @@ stroked skeleton** (there is no filled variant, and that is what makes it 234 B 
   under `theme: 'light'` the back defaults to `line`, the `table()` precedent verbatim.
 - A dark theme does not darken the face. That is correct for the subject and surprising to someone
   expecting otherwise, so it belongs in the options table, not only here.
+
+## Addendum — 2026-09-24: the back and the panel follow the face
+
+Two leaks of the same decision, both seen on the first site to ship the library:
+
+- **A `line` back was unfilled.** A face-down card in a `line` fan showed the card beneath it —
+  the transparent card this ADR refuses for the face. Its frame and lattice were drawn in `stock`,
+  so on a light page they were paper-on-paper and nearly invisible. Now the field is `stock` with a
+  `back` outline, and the frame and lattice take `back`. `flat` is unchanged.
+- **`face: false` left the court panel filled.** Under `flat` the panel is `stock`, so an airy
+  hand carried opaque blocks on see-through cards. `face: false` now unpaints every `stock`
+  surface: face, back field and panel.
+
+Both change the bytes of the affected outputs; 0.1.0 is unreleased, so no version is spent.

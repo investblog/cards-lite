@@ -154,6 +154,24 @@ false PASS.</p>
 				return true;
 			});
 
+			check('a line back hides the card beneath it, by hit testing', function () {
+				// a face-down card in a line row, probed in its left margin — outside the inset
+				// frame, over the card it overlaps. An unfilled field lets the hit fall through to
+				// the face below, which is what a see-through back looks like to the browser.
+				a.innerHTML = C.hand({ seed: 6, spread: 'row', count: 3, size: 320, style: 'line', theme: 'light', facedown: '010' });
+				a.scrollIntoView();
+				var svg = a.querySelector('svg'), groups = svg.querySelectorAll('svg > g');
+				if (groups.length !== 3) throw new Error('drew ' + groups.length + ' cards');
+				var pt = svg.createSVGPoint();
+				pt.x = -238; pt.y = 0;
+				var p = pt.matrixTransform(groups[1].getScreenCTM());
+				var hit = document.elementFromPoint(p.x, p.y);
+				a.innerHTML = C.hand({ seed: 6, spread: 'row', count: 5, size: 320 });
+				if (!hit) throw new Error('the probe hit nothing — is the stage on screen?');
+				if (!groups[1].contains(hit)) throw new Error('the probe fell through the back');
+				return true;
+			});
+
 			b.innerHTML = C.card({ card: '7h', seed: 3, stock: 'var(--pin-a, #000)', ink: 'var(--pin-b, #000)', size: 200 });
 			check('a pinned var() colour resolves to the page\'s value', function () {
 				// by what they carry, not by their position: a <rect> added to any def would

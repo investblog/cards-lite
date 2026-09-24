@@ -375,12 +375,14 @@
 		var kind = o.lattice && o.lattice !== 'auto' ? o.lattice : KINDS[Math.floor(S('back:lattice')() * 3)];
 		var rx = n(24 + 12 * S('card:rx:back')(), p);
 		var b = 20 + 12 * S('back:inset')();
+		// a line back is paper like the face, or a face-down card shows the one beneath it (ADR 011)
+		var ln = flat ? stock : c.col('back');
 		var field = o.face === false ? '' : el('rect', ['x', -HW, 'y', -HH, 'width', W, 'height', H, 'rx', rx,
-			'fill', flat ? c.col('back') : 'none', 'stroke', flat ? null : c.col('back'), 'stroke-width', flat ? null : 3]);
+			'fill', flat ? c.col('back') : stock, 'stroke', flat ? null : ln, 'stroke-width', flat ? null : 3]);
 		// the rounded rect IS the clip: a pattern fill is clipped by the shape it fills, so the
 		// frame inset is structural — it keeps the lattice off the card's own corner (ADR 008)
 		var fr = ['x', n(-HW + b, p), 'y', n(-HH + b, p), 'width', n(W - 2 * b, p), 'height', n(H - 2 * b, p),
-			'rx', n(Math.max(rx - 0.8 * b, 0), p), 'stroke', stock, 'stroke-width', n(6 * c.w, 2)];
+			'rx', n(Math.max(rx - 0.8 * b, 0), p), 'stroke', ln, 'stroke-width', n(6 * c.w, 2)];
 		if (kind === 'none' || o.detail === 1) return field + el('rect', fr.concat(['fill', 'none']));
 
 		var pitch = 26 + 30 * S('back:pitch')();
@@ -396,7 +398,7 @@
 			// butt caps (the SVG default, so never set): every edge is its own subpath, and round
 			// caps blunt the vertices — at a small pitch they turn the octagons into circles.
 			// Carried from hexagons.js:918 and octagons.js:508 with the geometry (ADR 008).
-			el('path', ['d', lattice(kind, pitch, flatHex), 'fill', 'none', 'stroke', stock,
+			el('path', ['d', lattice(kind, pitch, flatHex), 'fill', 'none', 'stroke', ln,
 				'stroke-width', n((1 + 1.4 * S('back:weight')()) * c.w, 2),
 				'stroke-opacity', n(0.14 + 0.12 * S('back:op')(), 2)]));
 		});
@@ -417,7 +419,7 @@
 		var gilt = c.col('gilt'), g = '';
 		var pr = n(12 + 8 * S('court:rx:' + key)(), p);
 		g += el('rect', ['x', -130, 'y', -236, 'width', 260, 'height', 472, 'rx', pr,
-			'fill', c.flat ? c.col('stock') : 'none', 'stroke', gilt, 'stroke-width', n(5 * c.w, 2)]);
+			'fill', c.flat && c.o.face !== false ? c.col('stock') : 'none', 'stroke', gilt, 'stroke-width', n(5 * c.w, 2)]);
 		var R0 = [112, 86, 58], dashOuter = S('court:dash:' + key)() < 0.5;
 		for (var k = 0; k < rings; k++) {
 			var rr = R0[k], dash = 2 * Math.PI * rr / segs;

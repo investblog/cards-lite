@@ -32,9 +32,13 @@ First release.
   `prefers-reduced-motion: reduce` leaves the cards in their finished places. Both halves of the
   start state — the slide and the turn — are derived from `pad`, so no card is ever clipped on
   its way in (ADR 013).
+- A `line` back is paper like the face — `stock` field, `back` outline, frame and lattice in
+  `back` — so a face-down card hides what lies under it; and `face: false` unpaints the court
+  panel as well as the face and the back's field (ADR 011 addendum). Found on the first site to
+  ship the library, before release.
 - `Cards.palette(brand, { theme })` and `Cards.init(el, opts)` (browser).
 - No signature in the output beyond the 17 fixed subject paths, which are counted and tested
   (ADR 005): every id, class and keyframe is a seeded token.
-- 62 Node tests, a browser verify page of 13 checks green in Chromium, Firefox and WebKit and in
+- 63 Node tests, a browser verify page of 14 checks green in Chromium, Firefox and WebKit and in
   both motion modes — every one of them seen to fail against a deliberately broken library — and
-  8950 B min+gzip against a 9088 B budget (ADR 009).
+  8966 B min+gzip against a 9088 B budget (ADR 009).

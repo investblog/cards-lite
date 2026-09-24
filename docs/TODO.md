@@ -105,8 +105,13 @@ Kept out on purpose — the family rule is that nothing speculative is carried, 
 - **Start the deal on entry** — an IntersectionObserver in `init()`, so a hand below the fold
   deals when it is reached rather than before. **The headroom it was costed against is gone:**
   183 B was measured at M4 against 8747; M5 and M5.1 spent it on the three engine fixes and now
-  the library is 8950, leaving **138 B**. At ~150 B this no longer fits at all — it is a budget
-  *raise* conversation now, not a budget conversation (re-measured 2026-09-21).
+  the library is 8950, leaving **138 B** — and 8966 / **122 B** after the paper-back fix
+  (2026-09-24). At ~150 B this no longer fits at all — it is a budget *raise* conversation now,
+  not a budget conversation (re-measured 2026-09-21).
+- **A `flat` back under `face: false` is nearly invisible on a light page** — no field, and the
+  frame and lattice stay `stock`, paper on paper. The `line` back took `back` for both on
+  2026-09-24 (ADR 011 addendum); `flat` was left byte-identical on purpose. Decide when a site
+  actually ships face-down cards in the airy treatment.
 - `polymorph` — the family's answer to the shared element skeleton, and the long answer to the
   17-path exception (ADR 005).
 - **The deck body** — handing a long `stack` off to an oblique extrusion of ~10 shapes instead of
