@@ -1,6 +1,6 @@
 {
   "name": "cards-lite",
-  "version": "0.0.0",
+  "version": "0.1.0",
   "description": "Procedural playing-card illustrations as an SVG string. Seeded spreads, brand-aware four-colour deck, line or flat, poker and blackjack hand presets. Zero dependencies; runs in Node at build time and in the browser.",
   "main": "cards.js",
   "types": "cards.d.ts",

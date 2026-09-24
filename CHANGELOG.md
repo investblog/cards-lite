@@ -4,7 +4,7 @@ From here on, any change to the output bytes for the same (seed, options) is a m
 a line here saying what changed (roulette-lite's ADR 010, adopted by ADR 001 — this repo's own
 ADR 010 is the different rule that presets are data).
 
-## 0.1.0 — unreleased
+## 0.1.0 — 2026-09-24
 
 First release.
 
