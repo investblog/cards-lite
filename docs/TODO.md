@@ -60,7 +60,13 @@ the way.
     (public, default `main`, one-line description with the measured size, homepage and Pages from
     the root of `main`, topics from `package.json` keywords — which the two newest siblings are
     missing). CI green on the first push; Pages answer 200 and the playground draws.
-  - [ ] the integration, then the release — `RELEASING.md`, and **`npm version minor` before the
+  - [~] the integration — **started 2026-09-24**: photoalbummax.lol (301's test-landing family)
+    ships hands in its hero, two SVGs per hero, the narrow one (`width <= 64rem`) generated with
+    `face: false` and remapped to pale `var()` tints. Looking at it found two defects no gate had
+    — a see-through `line` back and a court panel left filled under `face: false` — fixed in
+    `cd58e2e` (ADR 011 addendum). The site's source is not in `C:\projects` under any name a
+    grep found; its hand options were read off the live DOM.
+  - [ ] the release — `RELEASING.md`, and **`npm version minor` before the
     bootstrap publish**, or 0.0.0 goes to the registry for good.
 - [ ] **`actions/checkout@v4` and `actions/setup-node@v4` are on deprecated Node 20** — GitHub
   forces them onto Node 24 for now and annotates every run. v5 is the fix, and it is the whole
@@ -71,9 +77,10 @@ the way.
 
 Everything below is true of the gates and false of the world; nobody has used this library yet.
 
-- **It has never been on a real page.** M6's integration is the step that exists precisely because
-  tests do not catch what a layout does. Until then "works" means "passes 62 Node tests and 13
-  browser checks", nothing more.
+- **One real page, one look.** photoalbummax.lol is the first (2026-09-24), and it runs a copy
+  of the library from before `cd58e2e` — whether it has picked up the fix, and whether its
+  narrow variant drops `face: false` as advised, is the site owner's to check. Otherwise "works"
+  means "passes 63 Node tests and 14 browser checks", nothing more.
 - **`index.html` is covered by no gate at all.** `scripts/browser-gate.mjs` opens only
   `test/verify.html`, so every playground fix this session made was verified by hand in Chromium
   and by reading. Three of them were real defects (the presets gallery showed twelve identical
