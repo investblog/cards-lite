@@ -69,9 +69,11 @@ the way.
     with provenance (checked with `npm view`, and installed and drawn from a clean folder, not
     taken from the run's green). Tag `v0.1.0` pushed; `release.yml` exited green on the duplicate
     check. `NPM_TOKEN` deleted from the repository and `bootstrap-publish.yml` removed the same day.
-  - [ ] **the Trusted Publisher on npmjs.com** (`RELEASING.md`) and revoking the bootstrap token
-    there — both need the maintainer's live second factor. Until the first is done, the next
-    `release.yml` publish fails with the masked-403 `404 Not Found - PUT`.
+  - [x] the Trusted Publisher on npmjs.com (`investblog` / `cards-lite` / `release.yml`), configured
+    by the maintainer 2026-09-24. **Not yet exercised:** it cannot be read back without a
+    2FA-authenticated npm session (`npm trust list` answers 401/EOTP), so the first OIDC release
+    (0.2.0) is its proof — a `404 Not Found - PUT` there means it is missing or mistyped.
+  - [ ] revoke the bootstrap token on npmjs.com (already gone from the repository's secrets).
 - [ ] **`actions/checkout@v4` and `actions/setup-node@v4` are on deprecated Node 20** — GitHub
   forces them onto Node 24 for now and annotates every run. v5 is the fix, and it is the whole
   family's problem, not this repo's alone: the same pin sits in all five. Worth doing as one
