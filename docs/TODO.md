@@ -79,7 +79,9 @@ the way.
 - [ ] **`actions/checkout@v4` and `actions/setup-node@v4` are on deprecated Node 20** — GitHub
   forces them onto Node 24 for now and annotates every run. v5 is the fix, and it is the whole
   family's problem, not this repo's alone: the same pin sits in all five. Worth doing as one
-  pass, the way ADR 001 made this repo the eslint-10 pilot.
+  pass, the way ADR 001 made this repo the eslint-10 pilot. The same runs also announce that
+  `ubuntu-latest` moves to Ubuntu 26 from 2026-10-19 — nothing to do yet, but the first red run
+  after that date should be read against it before anything else.
 
 ## Not verified — read this before trusting the green
 
