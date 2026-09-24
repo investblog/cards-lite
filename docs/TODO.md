@@ -65,8 +65,13 @@ the way.
     remapped to pale `var()` tints. Looking at it found two defects no gate had — a see-through
     `line` back and a court panel left filled under `face: false` — fixed in `cd58e2e` (ADR 011
     addendum). The site's hand options were read off the live DOM, not its source.
-  - [ ] the release — `RELEASING.md`, and **`npm version minor` before the
-    bootstrap publish**, or 0.0.0 goes to the registry for good.
+  - [x] the release, 2026-09-24: `cards-lite@0.1.0` published by the one-time bootstrap workflow
+    with provenance (checked with `npm view`, and installed and drawn from a clean folder, not
+    taken from the run's green). Tag `v0.1.0` pushed; `release.yml` exited green on the duplicate
+    check. `NPM_TOKEN` deleted from the repository and `bootstrap-publish.yml` removed the same day.
+  - [ ] **the Trusted Publisher on npmjs.com** (`RELEASING.md`) and revoking the bootstrap token
+    there — both need the maintainer's live second factor. Until the first is done, the next
+    `release.yml` publish fails with the masked-403 `404 Not Found - PUT`.
 - [ ] **`actions/checkout@v4` and `actions/setup-node@v4` are on deprecated Node 20** — GitHub
   forces them onto Node 24 for now and annotates every run. v5 is the fix, and it is the whole
   family's problem, not this repo's alone: the same pin sits in all five. Worth doing as one
@@ -87,8 +92,8 @@ Everything below is true of the gates and false of the world; nobody has used th
 - **The mutation pass runs in Chromium**, except the two reduced-motion mutations, which run in all
   three. So a Firefox- or WebKit-only regression in the other eleven checks would not be caught by
   `--mutate`, only by the plain three-engine run.
-- **Nothing is published.** The package name is free, the version is deliberately `0.0.0`, and the
-  npm badge in `README.md` will 404 until the first publish. That is expected, not broken.
+- **0.1.0 has one known consumer and it predates the package.** photoalbummax.lol runs a vendored
+  copy; nobody has installed `cards-lite` from npm for real yet, beyond the release smoke test.
 - **The occlusion test proves something weaker than the criterion says** — five points of a
   64-wide em, where the contract reserves a 140-wide strip. Enough to pin a regression, not enough
   to be the criterion. Said so in the test itself.

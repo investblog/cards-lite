@@ -5,7 +5,10 @@ hands. Releases publish via **OIDC Trusted Publishing** with provenance
 (`.github/workflows/release.yml`). Every outward step below is taken on the maintainer's explicit
 go — creating the repository, the token, the publish.
 
-## One-time bootstrap (v0.1.0)
+## One-time bootstrap (v0.1.0) — done 2026-09-24
+
+Kept as the record, and for the sibling that does it next. `bootstrap-publish.yml` is deleted; it
+lives in git history at `c9e9680`.
 
 npm cannot attach a trusted publisher to a package that does not exist yet (hexagons,
 2026-08-09), so the first version goes out over a token and every later one over OIDC.
